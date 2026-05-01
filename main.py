@@ -166,6 +166,26 @@ def get_my_slots(current_user: database.User = Depends(auth.get_current_user), d
         })
     return result
 
+@app.delete("/doctor/slots/{slot_id}")
+def delete_slot(slot_id: int, current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    if current_user.role != "doctor":
+        raise HTTPException(status_code=403, detail="Only doctors can delete slots")
+    
+    slot = db.query(database.Slot).filter(
+        database.Slot.id == slot_id,
+        database.Slot.doctor_id == current_user.id
+    ).first()
+    
+    if not slot:
+        raise HTTPException(status_code=404, detail="Slot not found")
+    
+    if slot.is_booked:
+        raise HTTPException(status_code=400, detail="Cannot delete a booked slot")
+    
+    db.delete(slot)
+    db.commit()
+    return {"message": "Slot deleted successfully"}
+
 @app.get("/doctor/appointments")
 def get_doctor_appointments(current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
     if current_user.role != "doctor":
@@ -614,6 +634,14 @@ def read_terms():
 @app.get("/contact")
 def read_contact():
     return FileResponse("static/contact.html")
+
+@app.get("/calendar")
+def read_calendar():
+    return FileResponse("static/calendar.html")
+
+@app.get("/services")
+def read_services():
+    return FileResponse("static/services.html")
 
 if __name__ == "__main__":
     import uvicorn

@@ -1227,20 +1227,8 @@
 
         // Show Manage Slots
         function showManageSlots() {
-            document.getElementById('contentTitle').innerHTML = '<i class="fas fa-clock"></i> Manage Availability';
-            document.getElementById('contentBody').innerHTML = `
-                <div class="search-section">
-                    <h3 style="margin-bottom: 15px;">Add New Slot</h3>
-                    <div class="search-grid">
-                        <input type="datetime-local" id="slotStart">
-                        <input type="datetime-local" id="slotEnd">
-                        <button class="btn btn-primary" onclick="addSlot()">
-                            <i class="fas fa-plus"></i> Add Slot
-                        </button>
-                    </div>
-                </div>
-                <div id="slotsList"></div>
-            `;
+            // Redirect to the new calendar page
+            window.location.href = '/calendar';
         }
 
         // Add Slot

@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Our Services - Medipure</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/index.css">
+    <link rel="stylesheet" href="/static/footer-styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8f9fa;
+            color: #333;
+        }
+
+        .page-header {
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+            color: white;
+            padding: 80px 20px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(30, 136, 229, 0.3);
+        }
+
+        .page-header h1 {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .page-header p {
+            font-size: 1.3rem;
+            opacity: 0.95;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 60px 20px;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 60px;
+        }
+
+        .service-card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            transition: all 0.3s;
+            border: 1px solid #e9ecef;
+        }
+
+        .service-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        }
+
+        .service-icon {
+            background: linear-gradient(135deg, var(--color, #1e88e5) 0%, var(--color-dark, #1565c0) 100%);
+            padding: 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .service-icon::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        }
+
+        .service-icon i {
+            font-size: 4rem;
+            color: white;
+            position: relative;
+            z-index: 1;
+        }
+
+        .service-content {
+            padding: 30px;
+        }
+
+        .service-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #212529;
+            margin-bottom: 15px;
+        }
+
+        .service-description {
+            color: #6c757d;
+            line-height: 1.8;
+            margin-bottom: 20px;
+        }
+
+        .service-features {
+            list-style: none;
+            margin-bottom: 25px;
+        }
+
+        .service-features li {
+            padding: 8px 0;
+            color: #495057;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .service-features li i {
+            color: var(--color, #1e88e5);
+            font-size: 1.1rem;
+        }
+
+        .service-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, var(--color, #1e88e5) 0%, var(--color-dark, #1565c0) 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+
+        .service-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(30, 136, 229, 0.4);
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .section-title h2 {
+            font-size: 2.5rem;
+            color: #212529;
+            margin-bottom: 15px;
+        }
+
+        .section-title p {
+            font-size: 1.2rem;
+            color: #6c757d;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .specialty-section {
+            background: white;
+            padding: 60px 20px;
+            margin: 60px 0;
+            border-radius: 20px;
+        }
+
+        .specialty-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .specialty-item {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .specialty-item:hover {
+            background: white;
+            border-color: #1e88e5;
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+        }
+
+        .specialty-item i {
+            font-size: 2.5rem;
+            color: #1e88e5;
+            margin-bottom: 15px;
+        }
+
+        .specialty-item h3 {
+            font-size: 1.1rem;
+            color: #212529;
+            margin-bottom: 8px;
+        }
+
+        .specialty-item p {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+
+        .cta-section {
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+            padding: 60px 20px;
+            border-radius: 20px;
+            text-align: center;
+            color: white;
+            margin-top: 60px;
+        }
+
+        .cta-section h2 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+
+        .cta-section p {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            opacity: 0.95;
+        }
+
+        .cta-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 40px;
+            background: white;
+            color: #1e88e5;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+
+        .cta-btn:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+        }
+
+        @media (max-width: 768px) {
+            .page-header h1 {
+                font-size: 2rem;
+            }
+
+            .services-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .specialty-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <header style="background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 999;">
+        <div class="container" style="max-width: 1400px; margin: 0 auto; padding: 0 20px;">
+            <nav style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0;">
+                <div class="logo">
+                    <a href="/" style="text-decoration: none; color: #1e88e5; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                        <img src="/static/logo.svg" alt="Medipure Logo" style="width: 40px; height: 40px;"> Medipure
+                    </a>
+                </div>
+                <div style="display: flex; gap: 20px; align-items: center;">
+                    <a href="/" style="text-decoration: none; color: #495057; font-weight: 500;">Home</a>
+                    <a href="/services" style="text-decoration: none; color: #1e88e5; font-weight: 600;">Services</a>
+                    <a href="/top-doctors" style="text-decoration: none; color: #495057; font-weight: 500;">Doctors</a>
+                    <a href="/login" style="padding: 10px 24px; background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%); color: white; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                        Login
+                    </a>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <div class="page-header">
+        <h1><i class="fas fa-heartbeat"></i> Our Medical Services</h1>
+        <p>Comprehensive healthcare solutions with cutting-edge technology and experienced professionals</p>
+    </div>
+
+    <div class="container">
+        <div class="section-title">
+            <h2>Premium Healthcare Services</h2>
+            <p>We offer a wide range of medical services to meet all your healthcare needs</p>
+        </div>
+
+        <div class="services-grid">
+            <!-- Video Consultation -->
+            <div class="service-card" style="--color: #1e88e5; --color-dark: #1565c0;">
+                <div class="service-icon">
+                    <i class="fas fa-video"></i>
+                </div>
+                <div class="service-content">
+                    <h3 class="service-title">Video Consultation</h3>
+                    <p class="service-description">
+                        Connect with top doctors from the comfort of your home through secure video calls.
+                    </p>
+                    <ul class="service-features">
+                        <li><i class="fas fa-check-circle"></i> 24/7 Availability</li>
+                        <li><i class="fas fa-check-circle"></i> Instant Appointments</li>
+                        <li><i class="fas fa-check-circle"></i> Secure & Private</li>
+                        <li><i class="fas fa-check-circle"></i> Digital Prescriptions</li>
+                    </ul>
+                    <a href="/top-doctors" class="service-btn">
+                        <i class="fas fa-calendar-plus"></i> Book Now
+                    </a>
+                </div>
+            </div>
+
+            <!-- In-Person Consultation -->
+            <div class="service-card" style="--color: #4caf50; --color-dark: #388e3c;">
+                <div class="service-icon">
+                    <i class="fas fa-hospital"></i>
+                </div>
+                <div class="service-content">
+                    <h3 class="service-title">In-Person Consultation</h3>
+                    <p class="service-description">
+                        Visit our partner clinics for comprehensive physical examinations and treatments.
+                    </p>
+                    <ul class="service-features">
+                        <li><i class="fas fa-check-circle"></i> Physical Examination</li>
+                        <li><i class="fas fa-check-circle"></i> Diagnostic Tests</li>
+                        <li><i class="fas fa-check-circle"></i> Treatment Plans</li>
+                        <li><i class="fas fa-check-circle"></i> Follow-up Care</li>
+                    </ul>
+                    <a href="/top-doctors" class="service-btn" style="background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);">
+                        <i class="fas fa-calendar-check"></i> Schedule Visit
+                    </a>
+                </div>
+            </div>
+
+            <!-- AI Health Assistant -->
+            <div class="service-card" style="--color: #9c27b0; --color-dark: #7b1fa2;">
+                <div class="service-icon">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="service-content">
+                    <h3 class="service-title">AI Health Assistant</h3>
+                    <p class="service-description">
+                        Get instant health recommendations based on your symptoms using advanced AI technology.
+                    </p>
+                    <ul class="service-features">
+                        <li><i class="fas fa-check-circle"></i> Symptom Analysis</li>
+                        <li><i class="fas fa-check-circle"></i> Specialist Recommendations</li>
+                        <li><i class="fas fa-check-circle"></i> Health Tips</li>
+                        <li><i class="fas fa-check-circle"></i> Free to Use</li>
+                    </ul>
+                    <a href="/login" class="service-btn" style="background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);">
+                        <i class="fas fa-brain"></i> Try AI Assistant
+                    </a>
+                </div>
+            </div>
+
+            <!-- Diagnostic Services -->
+            <div class="service-card" style="--color: #ff9800; --color-dark: #f57c00;">
+                <div class="service-icon">
+                    <i class="fas fa-microscope"></i>
+                </div>
+                <div class="service-content">
+                    <h3 class="service-title">Diagnostic Services</h3>
+                    <p class="service-description">
+                        Comprehensive diagnostic tests and lab services with accurate and timely results.
+                    </p>
+                    <ul class="service-features">
+                        <li><i class="fas fa-check-circle"></i> Blood Tests</li>
+                        <li><i class="fas fa-check-circle"></i> Imaging (X-Ray, MRI, CT)</li>
+                        <li><i class="fas fa-check-circle"></i> ECG & Echo</li>
+                        <li><i class="fas fa-check-circle"></i> Home Sample Collection</li>
+                    </ul>
+                    <a href="/login" class="service-btn" style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);">
+                        <i class="fas fa-flask"></i> Book Test
+                    </a>
+                </div>
+            </div>
+
+            <!-- Pharmacy Services -->
+            <div class="service-card" style="--color: #00bcd4; --color-dark: #0097a7;">
+                <div class="service-icon">
+                    <i class="fas fa-pills"></i>
+                </div>
+                <div class="service-content">
+                    <h3 class="service-title">Online Pharmacy</h3>
+                    <p class="service-description">
+                        Order medicines online and get them delivered to your doorstep with prescription verification.
+                    </p>
+                    <ul class="service-features">
+                        <li><i class="fas fa-check-circle"></i> Genuine Medicines</li>
+                        <li><i class="fas fa-check-circle"></i> Home Delivery</li>
+                        <li><i class="fas fa-check-circle"></i> Prescription Upload</li>
+                        <li><i class="fas fa-check-circle"></i> Discounts Available</li>
+                    </ul>
+                    <a href="/login" class="service-btn" style="background: linear-gradient(135deg, #00bcd4 0%, #0097a7 100%);">
+                        <i class="fas fa-shopping-cart"></i> Order Medicines
+                    </a>
+                </div>
+            </div>
+
+            <!-- Health Records -->
+            <div class="service-card" style="--color: #e91e63; --color-dark: #c2185b;">
+                <div class="service-icon">
+                    <i class="fas fa-file-medical"></i>
+                </div>
+                <div class="service-content">
+                    <h3 class="service-title">Digital Health Records</h3>
+                    <p class="service-description">
+                        Store and access your medical records securely anytime, anywhere with cloud storage.
+                    </p>
+                    <ul class="service-features">
+                        <li><i class="fas fa-check-circle"></i> Secure Storage</li>
+                        <li><i class="fas fa-check-circle"></i> Easy Access</li>
+                        <li><i class="fas fa-check-circle"></i> Share with Doctors</li>
+                        <li><i class="fas fa-check-circle"></i> Prescription History</li>
+                    </ul>
+                    <a href="/login" class="service-btn" style="background: linear-gradient(135deg, #e91e63 0%, #c2185b 100%);">
+                        <i class="fas fa-folder-open"></i> View Records
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Specialties Section -->
+        <div class="specialty-section">
+            <div class="section-title">
+                <h2>Medical Specialties</h2>
+                <p>Expert doctors across all major medical specialties</p>
+            </div>
+
+            <div class="specialty-grid">
+                <div class="specialty-item">
+                    <i class="fas fa-heart"></i>
+                    <h3>Cardiology</h3>
+                    <p>Heart & Vascular</p>
+                </div>
+
+                <div class="specialty-item">
+                    <i class="fas fa-brain"></i>
+                    <h3>Neurology</h3>
+                    <p>Brain & Nerves</p>
+                </div>
+
+                <div class="specialty-item">
+                    <i class="fas fa-bone"></i>
+                    <h3>Orthopedics</h3>
+                    <p>Bones & Joints</p>
+                </div>
+
+                <div class="specialty-item">
+                    <i class="fas fa-baby"></i>
+                    <h3>Pediatrics</h3>
+                    <p>Child Care</p>
+                </div>
+
+                <div class="specialty-item">
+                    <i class="fas fa-user-md"></i>
+                    <h3>Dermatology</h3>
+                    <p>Skin & Hair</p>
+                </div>
+
+                <div class="specialty-item">
+                    <i class="fas fa-eye"></i>
+                    <h3>Ophthalmology</h3>
+                    <p>Eye Care</p>
+                </div>
+
+                <div class="specialty-item">
+                    <i class="fas fa-tooth"></i>
+                    <h3>Dentistry</h3>
+                    <p>Dental Care</p>
+                </div>
+
+                <div class="specialty-item">
+                    <i class="fas fa-female"></i>
+                    <h3>Gynecology</h3>
+                    <p>Women's Health</p>
+                </div>
+
+                <div class="specialty-item">
+                    <i class="fas fa-lungs"></i>
+                    <h3>Pulmonology</h3>
+                    <p>Respiratory</p>
+                </div>
+
+                <div class="specialty-item">
+                    <i class="fas fa-stomach"></i>
+                    <h3>Gastroenterology</h3>
+                    <p>Digestive System</p>
+                </div>
+
+                <div class="specialty-item">
+                    <i class="fas fa-head-side-virus"></i>
+                    <h3>Psychiatry</h3>
+                    <p>Mental Health</p>
+                </div>
+
+                <div class="specialty-item">
+                    <i class="fas fa-syringe"></i>
+                    <h3>General Medicine</h3>
+                    <p>Primary Care</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- CTA Section -->
+        <div class="cta-section">
+            <h2>Ready to Get Started?</h2>
+            <p>Book an appointment with our top-rated doctors today</p>
+            <a href="/top-doctors" class="cta-btn">
+                <i class="fas fa-calendar-check"></i> Find a Doctor
+            </a>
+        </div>
+    </div>
+
+    <footer style="background: #212529; color: white; margin-top: 80px;">
+        <div class="container" style="padding: 40px 20px;">
+            <div style="text-align: center;">
+                <p style="color: #adb5bd;">© 2026 Medipure. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

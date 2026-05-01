@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Availability - Medipure</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8f9fa;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #1e88e5;
+            font-size: 2rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header p {
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+
+        .calendar-container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            .calendar-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Calendar Sidebar */
+        .calendar-sidebar {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            height: fit-content;
+        }
+
+        .mini-calendar {
+            margin-bottom: 25px;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .calendar-header h3 {
+            font-size: 1.1rem;
+            color: #212529;
+        }
+
+        .calendar-nav {
+            display: flex;
+            gap: 10px;
+        }
+
+        .calendar-nav button {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: #f8f9fa;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #495057;
+            transition: all 0.3s;
+        }
+
+        .calendar-nav button:hover {
+            background: #1e88e5;
+            color: white;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+
+        .calendar-day-header {
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #6c757d;
+            padding: 8px 0;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .calendar-day:hover {
+            background: #e3f2fd;
+        }
+
+        .calendar-day.other-month {
+            color: #adb5bd;
+        }
+
+        .calendar-day.today {
+            background: #1e88e5;
+            color: white;
+            font-weight: 600;
+        }
+
+        .calendar-day.selected {
+            background: #1565c0;
+            color: white;
+            font-weight: 600;
+        }
+
+        .calendar-day.has-slots::after {
+            content: '';
+            position: absolute;
+            bottom: 4px;
+            width: 4px;
+            height: 4px;
+            background: #4caf50;
+            border-radius: 50%;
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            border-top: 1px solid #e9ecef;
+            padding-top: 20px;
+        }
+
+        .quick-actions h4 {
+            font-size: 0.9rem;
+            color: #495057;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .quick-action-btn {
+            width: 100%;
+            padding: 12px;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.95rem;
+            color: #495057;
+        }
+
+        .quick-action-btn:hover {
+            background: #e3f2fd;
+            border-color: #1e88e5;
+            color: #1e88e5;
+        }
+
+        .quick-action-btn i {
+            font-size: 1.2rem;
+        }
+
+        /* Main Calendar Area */
+        .main-calendar {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+
+        .main-calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .main-calendar-header h2 {
+            color: #212529;
+            font-size: 1.5rem;
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 10px;
+        }
+
+        .view-btn {
+            padding: 10px 20px;
+            border: 2px solid #e9ecef;
+            background: white;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .view-btn.active {
+            background: #1e88e5;
+            color: white;
+            border-color: #1e88e5;
+        }
+
+        /* Time Slots Grid */
+        .time-slots-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .time-slot-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid #e9ecef;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .time-slot-card:hover {
+            border-color: #1e88e5;
+            box-shadow: 0 4px 12px rgba(30, 136, 229, 0.15);
+        }
+
+        .time-slot-card.booked {
+            background: #fff3e0;
+            border-color: #ff9800;
+        }
+
+        .time-slot-time {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #212529;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .time-slot-status {
+            font-size: 0.85rem;
+            padding: 4px 10px;
+            border-radius: 12px;
+            display: inline-block;
+            font-weight: 600;
+        }
+
+        .time-slot-status.available {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .time-slot-status.booked {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .time-slot-actions {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .slot-action-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .slot-action-btn.delete {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .slot-action-btn.delete:hover {
+            background: #c62828;
+            color: white;
+        }
+
+        /* Add Slot Form */
+        .add-slot-form {
+            background: #e3f2fd;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border: 2px dashed #1e88e5;
+        }
+
+        .add-slot-form h3 {
+            color: #1e88e5;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 15px;
+            align-items: end;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.9rem;
+        }
+
+        .form-group input {
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s;
+            background: white;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #1e88e5;
+            box-shadow: 0 0 0 4px rgba(30, 136, 229, 0.1);
+        }
+
+        .btn-primary {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(30, 136, 229, 0.4);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            color: #dee2e6;
+            margin-bottom: 20px;
+        }
+
+        /* Duration Presets */
+        .duration-presets {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .duration-preset {
+            padding: 6px 12px;
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+        }
+
+        .duration-preset:hover {
+            border-color: #1e88e5;
+            color: #1e88e5;
+        }
+
+        /* Time Picker Clock */
+        .time-picker-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .time-picker-modal.active {
+            display: flex;
+        }
+
+        .time-picker-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .time-picker-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .time-picker-header h3 {
+            color: #1e88e5;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .time-display {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: #212529;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+        }
+
+        .time-mode-selector {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .mode-btn {
+            padding: 10px 25px;
+            border: 2px solid #e9ecef;
+            background: white;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            color: #495057;
+        }
+
+        .mode-btn.active {
+            background: #1e88e5;
+            color: white;
+            border-color: #1e88e5;
+        }
+
+        .clock-container {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            margin: 0 auto 25px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 50%;
+            border: 10px solid #1e88e5;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .clock-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 16px;
+            height: 16px;
+            background: #1e88e5;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .clock-hand {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 4px;
+            height: 100px;
+            background: linear-gradient(to top, #1e88e5, #1565c0);
+            transform-origin: bottom center;
+            transform: translate(-50%, -100%) rotate(0deg);
+            border-radius: 4px 4px 0 0;
+            transition: transform 0.3s ease;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .clock-number {
+            position: absolute;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: #495057;
+            cursor: pointer;
+            border-radius: 50%;
+            transition: all 0.3s;
+            font-size: 1.1rem;
+        }
+
+        .clock-number:hover {
+            background: #e3f2fd;
+            color: #1e88e5;
+            transform: scale(1.2);
+        }
+
+        .clock-number.selected {
+            background: #1e88e5;
+            color: white;
+            transform: scale(1.3);
+            box-shadow: 0 4px 12px rgba(30, 136, 229, 0.4);
+        }
+
+        .time-period-toggle {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .period-btn {
+            padding: 12px 35px;
+            border: 2px solid #e9ecef;
+            background: white;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 1.1rem;
+        }
+
+        .period-btn.active {
+            background: #1e88e5;
+            color: white;
+            border-color: #1e88e5;
+            box-shadow: 0 4px 12px rgba(30, 136, 229, 0.3);
+        }
+
+        .time-picker-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .time-picker-actions button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1rem;
+        }
+
+        .btn-cancel {
+            background: #f8f9fa;
+            color: #495057;
+            border: 2px solid #e9ecef;
+        }
+
+        .btn-cancel:hover {
+            background: #e9ecef;
+        }
+
+        .btn-confirm {
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(30, 136, 229, 0.3);
+        }
+
+        .btn-confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(30, 136, 229, 0.4);
+        }
+
+        .clock-instruction {
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+
+        /* Slot Templates */
+        .slot-templates {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 2px solid #e9ecef;
+        }
+
+        .slot-templates h4 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 0.95rem;
+        }
+
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+
+        .template-btn {
+            padding: 12px;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .template-btn:hover {
+            background: #e3f2fd;
+            border-color: #1e88e5;
+            color: #1e88e5;
+        }
+
+        .template-btn i {
+            display: block;
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <header style="background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 1000;">
+        <div class="container" style="max-width: 1400px; margin: 0 auto; padding: 0 20px;">
+            <nav style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0;">
+                <div class="logo">
+                    <a href="/" style="text-decoration: none; color: #1e88e5; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                        <img src="/static/logo.svg" alt="Medipure Logo" style="width: 40px; height: 40px;"> Medipure
+                    </a>
+                </div>
+                <div style="display: flex; gap: 20px; align-items: center;">
+                    <a href="/dashboard" style="text-decoration: none; color: #495057; font-weight: 500;">Dashboard</a>
+                    <a href="/profile" style="text-decoration: none; color: #495057; font-weight: 500;">Profile</a>
+                    <button onclick="logout()" style="padding: 10px 24px; background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        Logout
+                    </button>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-calendar-alt"></i> Manage Availability</h1>
+            <p>Set your available time slots for patient appointments</p>
+        </div>
+
+        <div class="calendar-container">
+            <!-- Sidebar -->
+            <div class="calendar-sidebar">
+                <div class="mini-calendar">
+                    <div class="calendar-header">
+                        <h3 id="miniCalendarMonth">January 2026</h3>
+                        <div class="calendar-nav">
+                            <button onclick="previousMonth()"><i class="fas fa-chevron-left"></i></button>
+                            <button onclick="nextMonth()"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                    <div class="calendar-grid" id="miniCalendar">
+                        <!-- Calendar will be generated here -->
+                    </div>
+                </div>
+
+                <div class="quick-actions">
+                    <h4>Quick Actions</h4>
+                    <button class="quick-action-btn" onclick="addMultipleSlots()">
+                        <i class="fas fa-plus-circle"></i>
+                        Add Multiple Slots
+                    </button>
+                    <button class="quick-action-btn" onclick="viewAllSlots()">
+                        <i class="fas fa-list"></i>
+                        View All Slots
+                    </button>
+                    <button class="quick-action-btn" onclick="copyWeekSlots()">
+                        <i class="fas fa-copy"></i>
+                        Copy Week Schedule
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Calendar -->
+            <div class="main-calendar">
+                <div class="main-calendar-header">
+                    <h2 id="selectedDateTitle">Select a date</h2>
+                    <div class="view-toggle">
+                        <button class="view-btn active" onclick="switchView('day')">Day</button>
+                        <button class="view-btn" onclick="switchView('week')">Week</button>
+                    </div>
+                </div>
+
+                <!-- Add Slot Form -->
+                <div class="add-slot-form">
+                    <h3><i class="fas fa-plus-circle"></i> Add New Time Slot</h3>
+                    
+                    <!-- Slot Templates -->
+                    <div class="slot-templates">
+                        <h4>📋 Quick Templates</h4>
+                        <div class="template-grid">
+                            <button class="template-btn" onclick="applyTemplate('morning')">
+                                <i class="fas fa-sun"></i>
+                                Morning Shift<br>
+                                <small>9 AM - 1 PM</small>
+                            </button>
+                            <button class="template-btn" onclick="applyTemplate('afternoon')">
+                                <i class="fas fa-cloud-sun"></i>
+                                Afternoon<br>
+                                <small>2 PM - 6 PM</small>
+                            </button>
+                            <button class="template-btn" onclick="applyTemplate('evening')">
+                                <i class="fas fa-moon"></i>
+                                Evening<br>
+                                <small>6 PM - 9 PM</small>
+                            </button>
+                            <button class="template-btn" onclick="applyTemplate('fullday')">
+                                <i class="fas fa-calendar-day"></i>
+                                Full Day<br>
+                                <small>9 AM - 9 PM</small>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Start Time</label>
+                            <input type="text" id="startTime" value="09:00 AM" readonly onclick="openTimePicker('start')" style="cursor: pointer;">
+                        </div>
+                        <div class="form-group">
+                            <label>End Time</label>
+                            <input type="text" id="endTime" value="09:30 AM" readonly onclick="openTimePicker('end')" style="cursor: pointer;">
+                        </div>
+                        <button class="btn-primary" onclick="addSlot()">
+                            <i class="fas fa-plus"></i> Add Slot
+                        </button>
+                    </div>
+                    <div class="duration-presets">
+                        <span style="font-size: 0.85rem; color: #6c757d; margin-right: 10px;">Quick Duration:</span>
+                        <button class="duration-preset" onclick="setDuration(15)">15 min</button>
+                        <button class="duration-preset active" onclick="setDuration(30)">30 min</button>
+                        <button class="duration-preset" onclick="setDuration(45)">45 min</button>
+                        <button class="duration-preset" onclick="setDuration(60)">1 hour</button>
+                    </div>
+                </div>
+
+                <!-- Time Slots Display -->
+                <div id="timeSlotsContainer" class="time-slots-container">
+                    <div class="empty-state">
+                        <i class="fas fa-calendar-plus"></i>
+                        <p>No slots available for this date. Add your first slot above!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Time Picker Modal -->
+    <div class="time-picker-modal" id="timePickerModal">
+        <div class="time-picker-content">
+            <div class="time-picker-header">
+                <h3 id="timePickerTitle">Select Time</h3>
+                <div class="time-display" id="timeDisplay">09:00 AM</div>
+            </div>
+
+            <div class="clock-instruction">
+                <span id="clockInstruction">Select Hour</span>
+            </div>
+
+            <div class="time-mode-selector">
+                <button class="mode-btn active" id="hourModeBtn" onclick="switchToHourMode()">
+                    <i class="fas fa-clock"></i> Hour
+                </button>
+                <button class="mode-btn" id="minuteModeBtn" onclick="switchToMinuteMode()">
+                    <i class="fas fa-stopwatch"></i> Minute
+                </button>
+            </div>
+
+            <div class="time-period-toggle">
+                <button class="period-btn active" onclick="setPeriod('AM')">AM</button>
+                <button class="period-btn" onclick="setPeriod('PM')">PM</button>
+            </div>
+
+            <div class="clock-container" id="clockContainer">
+                <div class="clock-center"></div>
+                <div class="clock-hand" id="clockHand"></div>
+                <!-- Clock numbers will be generated here -->
+            </div>
+
+            <div class="time-picker-actions">
+                <button class="btn-cancel" onclick="closeTimePicker()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button class="btn-confirm" onclick="confirmTime()">
+                    <i class="fas fa-check"></i> Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = '/login';
+
+        let currentDate = new Date();
+        let selectedDate = new Date();
+        let allSlots = [];
+        let currentTimePicker = null;
+        let selectedHour = 9;
+        let selectedMinute = 0;
+        let selectedPeriod = 'AM';
+        let clockMode = 'hour'; // 'hour' or 'minute'
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = '/login';
+        }
+
+        // Initialize
+        function init() {
+            // Set current date to today
+            currentDate = new Date();
+            selectedDate = new Date();
+            renderMiniCalendar();
+            selectDate(new Date());
+            loadSlots();
+        }
+
+        // Initialize clock with hours
+        function initializeHourClock() {
+            const clock = document.getElementById('clockContainer');
+            // Clear existing numbers
+            const existingNumbers = clock.querySelectorAll('.clock-number');
+            existingNumbers.forEach(num => num.remove());
+            
+            const hours = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+            
+            hours.forEach((hour, index) => {
+                const angle = (index * 30) - 90; // 30 degrees per hour, start from top
+                const radius = 120; // Distance from center
+                const x = 160 + radius * Math.cos(angle * Math.PI / 180);
+                const y = 160 + radius * Math.sin(angle * Math.PI / 180);
+                
+                const numberDiv = document.createElement('div');
+                numberDiv.className = 'clock-number';
+                numberDiv.textContent = hour;
+                numberDiv.style.left = `${x - 22.5}px`;
+                numberDiv.style.top = `${y - 22.5}px`;
+                numberDiv.onclick = () => selectHour(hour);
+                
+                if (hour === selectedHour) {
+                    numberDiv.classList.add('selected');
+                }
+                
+                clock.appendChild(numberDiv);
+            });
+            
+            updateClockHand();
+        }
+
+        // Initialize clock with minutes
+        function initializeMinuteClock() {
+            const clock = document.getElementById('clockContainer');
+            // Clear existing numbers
+            const existingNumbers = clock.querySelectorAll('.clock-number');
+            existingNumbers.forEach(num => num.remove());
+            
+            const minutes = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+            
+            minutes.forEach((minute, index) => {
+                const angle = (index * 30) - 90; // 30 degrees per 5 minutes
+                const radius = 120;
+                const x = 160 + radius * Math.cos(angle * Math.PI / 180);
+                const y = 160 + radius * Math.sin(angle * Math.PI / 180);
+                
+                const numberDiv = document.createElement('div');
+                numberDiv.className = 'clock-number';
+                numberDiv.textContent = minute.toString().padStart(2, '0');
+                numberDiv.style.left = `${x - 22.5}px`;
+                numberDiv.style.top = `${y - 22.5}px`;
+                numberDiv.onclick = () => selectMinute(minute);
+                
+                if (minute === selectedMinute) {
+                    numberDiv.classList.add('selected');
+                }
+                
+                clock.appendChild(numberDiv);
+            });
+            
+            updateClockHand();
+        }
+
+        // Update clock hand position
+        function updateClockHand() {
+            const hand = document.getElementById('clockHand');
+            let angle;
+            
+            if (clockMode === 'hour') {
+                // Calculate angle for hour (30 degrees per hour)
+                angle = (selectedHour % 12) * 30 - 90;
+            } else {
+                // Calculate angle for minute (6 degrees per minute)
+                angle = selectedMinute * 6 - 90;
+            }
+            
+            hand.style.transform = `translate(-50%, -100%) rotate(${angle}deg)`;
+        }
+
+        // Switch between hour and minute mode
+        function switchToHourMode() {
+            clockMode = 'hour';
+            document.getElementById('hourModeBtn').classList.add('active');
+            document.getElementById('minuteModeBtn').classList.remove('active');
+            document.getElementById('clockInstruction').textContent = 'Select Hour';
+            initializeHourClock();
+        }
+
+        function switchToMinuteMode() {
+            clockMode = 'minute';
+            document.getElementById('minuteModeBtn').classList.add('active');
+            document.getElementById('hourModeBtn').classList.remove('active');
+            document.getElementById('clockInstruction').textContent = 'Select Minute';
+            initializeMinuteClock();
+        }
+
+        // Time Picker Functions
+        function openTimePicker(type) {
+            currentTimePicker = type;
+            const modal = document.getElementById('timePickerModal');
+            const title = document.getElementById('timePickerTitle');
+            
+            title.textContent = type === 'start' ? 'Select Start Time' : 'Select End Time';
+            
+            // Get current value
+            const currentValue = document.getElementById(type === 'start' ? 'startTime' : 'endTime').value;
+            const [time, period] = currentValue.split(' ');
+            const [hour, minute] = time.split(':');
+            
+            selectedHour = parseInt(hour);
+            selectedMinute = parseInt(minute);
+            selectedPeriod = period;
+            
+            // Start with hour mode
+            clockMode = 'hour';
+            switchToHourMode();
+            
+            updateTimeDisplay();
+            updatePeriodButtons();
+            modal.classList.add('active');
+        }
+
+        function closeTimePicker() {
+            document.getElementById('timePickerModal').classList.remove('active');
+        }
+
+        function selectHour(hour) {
+            selectedHour = hour;
+            updateTimeDisplay();
+            updateClockHand();
+            
+            // Highlight selected hour
+            document.querySelectorAll('.clock-number').forEach(num => {
+                num.classList.remove('selected');
+                if (parseInt(num.textContent) === hour) {
+                    num.classList.add('selected');
+                }
+            });
+            
+            // Auto-switch to minute mode after selecting hour
+            setTimeout(() => {
+                switchToMinuteMode();
+            }, 500);
+        }
+
+        function selectMinute(minute) {
+            selectedMinute = minute;
+            updateTimeDisplay();
+            updateClockHand();
+            
+            // Highlight selected minute
+            document.querySelectorAll('.clock-number').forEach(num => {
+                num.classList.remove('selected');
+                if (parseInt(num.textContent) === minute) {
+                    num.classList.add('selected');
+                }
+            });
+        }
+
+        function setPeriod(period) {
+            selectedPeriod = period;
+            updatePeriodButtons();
+            updateTimeDisplay();
+        }
+
+        function updatePeriodButtons() {
+            document.querySelectorAll('.period-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.textContent === selectedPeriod) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+        function updateTimeDisplay() {
+            const hourStr = selectedHour.toString().padStart(2, '0');
+            const minStr = selectedMinute.toString().padStart(2, '0');
+            document.getElementById('timeDisplay').textContent = `${hourStr}:${minStr} ${selectedPeriod}`;
+        }
+
+        function confirmTime() {
+            const hourStr = selectedHour.toString().padStart(2, '0');
+            const minStr = selectedMinute.toString().padStart(2, '0');
+            const timeStr = `${hourStr}:${minStr} ${selectedPeriod}`;
+            
+            if (currentTimePicker === 'start') {
+                document.getElementById('startTime').value = timeStr;
+                // Auto-set end time 30 minutes later
+                const endTime = addMinutes(selectedHour, selectedMinute, selectedPeriod, 30);
+                document.getElementById('endTime').value = endTime;
+            } else {
+                document.getElementById('endTime').value = timeStr;
+            }
+            
+            closeTimePicker();
+        }
+
+        function addMinutes(hour, minute, period, minutesToAdd) {
+            let totalMinutes = minute + minutesToAdd;
+            let newHour = hour;
+            let newPeriod = period;
+            
+            if (totalMinutes >= 60) {
+                newHour += Math.floor(totalMinutes / 60);
+                totalMinutes = totalMinutes % 60;
+            }
+            
+            if (newHour > 12) {
+                newHour = newHour - 12;
+            }
+            
+            if (newHour === 12 && minute + minutesToAdd >= 60) {
+                newPeriod = period === 'AM' ? 'PM' : 'AM';
+            }
+            
+            return `${newHour.toString().padStart(2, '0')}:${totalMinutes.toString().padStart(2, '0')} ${newPeriod}`;
+        }
+
+        // Template Functions
+        function applyTemplate(template) {
+            const templates = {
+                morning: { start: '09:00 AM', end: '01:00 PM' },
+                afternoon: { start: '02:00 PM', end: '06:00 PM' },
+                evening: { start: '06:00 PM', end: '09:00 PM' },
+                fullday: { start: '09:00 AM', end: '09:00 PM' }
+            };
+            
+            const selected = templates[template];
+            if (selected) {
+                document.getElementById('startTime').value = selected.start;
+                document.getElementById('endTime').value = selected.end;
+                
+                // Generate slots every 30 minutes
+                if (confirm(`Generate 30-minute slots from ${selected.start} to ${selected.end}?`)) {
+                    generateMultipleSlots(selected.start, selected.end, 30);
+                }
+            }
+        }
+
+        async function generateMultipleSlots(startTime, endTime, duration) {
+            const start = parseTime(startTime);
+            const end = parseTime(endTime);
+            
+            let current = start;
+            const slots = [];
+            
+            while (current < end) {
+                const slotEnd = new Date(current.getTime() + duration * 60000);
+                if (slotEnd <= end) {
+                    slots.push({
+                        start_time: current.toISOString(),
+                        end_time: slotEnd.toISOString()
+                    });
+                }
+                current = slotEnd;
+            }
+            
+            // Add all slots
+            for (const slot of slots) {
+                try {
+                    await fetch('/doctor/slots', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify(slot)
+                    });
+                } catch (error) {
+                    console.error('Error adding slot:', error);
+                }
+            }
+            
+            await loadSlots();
+            alert(`Added ${slots.length} slots successfully!`);
+        }
+
+        function parseTime(timeStr) {
+            const [time, period] = timeStr.split(' ');
+            const [hour, minute] = time.split(':').map(Number);
+            
+            let hour24 = hour;
+            if (period === 'PM' && hour !== 12) hour24 += 12;
+            if (period === 'AM' && hour === 12) hour24 = 0;
+            
+            const date = new Date(selectedDate);
+            date.setHours(hour24, minute, 0, 0);
+            return date;
+        }
+
+        // Render mini calendar
+        function renderMiniCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            
+            document.getElementById('miniCalendarMonth').textContent = 
+                currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+            let html = '';
+            
+            // Day headers
+            ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].forEach(day => {
+                html += `<div class="calendar-day-header">${day}</div>`;
+            });
+
+            // Previous month days
+            for (let i = firstDay - 1; i >= 0; i--) {
+                html += `<div class="calendar-day other-month">${daysInPrevMonth - i}</div>`;
+            }
+
+            // Current month days
+            const today = new Date();
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(year, month, day);
+                const isToday = date.toDateString() === today.toDateString();
+                const isSelected = date.toDateString() === selectedDate.toDateString();
+                const hasSlots = checkIfDateHasSlots(date);
+                
+                let classes = 'calendar-day';
+                if (isToday) classes += ' today';
+                if (isSelected) classes += ' selected';
+                if (hasSlots) classes += ' has-slots';
+                
+                html += `<div class="${classes}" onclick="selectDate(new Date(${year}, ${month}, ${day}))">${day}</div>`;
+            }
+
+            document.getElementById('miniCalendar').innerHTML = html;
+        }
+
+        function previousMonth() {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            renderMiniCalendar();
+        }
+
+        function nextMonth() {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            renderMiniCalendar();
+        }
+
+        function selectDate(date) {
+            selectedDate = date;
+            document.getElementById('selectedDateTitle').textContent = 
+                date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            renderMiniCalendar();
+            displaySlotsForDate(date);
+        }
+
+        function checkIfDateHasSlots(date) {
+            const dateStr = date.toISOString().split('T')[0];
+            return allSlots.some(slot => slot.start_time.startsWith(dateStr));
+        }
+
+        // Load slots from server
+        async function loadSlots() {
+            try {
+                const res = await fetch('/doctor/slots', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                allSlots = await res.json();
+                renderMiniCalendar();
+                displaySlotsForDate(selectedDate);
+            } catch (error) {
+                console.error('Error loading slots:', error);
+            }
+        }
+
+        // Display slots for selected date
+        function displaySlotsForDate(date) {
+            const dateStr = date.toISOString().split('T')[0];
+            const daySlots = allSlots.filter(slot => slot.start_time.startsWith(dateStr));
+            
+            const container = document.getElementById('timeSlotsContainer');
+            
+            if (daySlots.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-calendar-plus"></i>
+                        <p>No slots available for this date. Add your first slot above!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Sort slots by time
+            daySlots.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+
+            container.innerHTML = daySlots.map(slot => {
+                const start = new Date(slot.start_time);
+                const end = new Date(slot.end_time);
+                const startTime = start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                const endTime = end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                
+                return `
+                    <div class="time-slot-card ${slot.is_booked ? 'booked' : ''}">
+                        <div class="time-slot-time">
+                            <i class="fas fa-clock"></i>
+                            ${startTime} - ${endTime}
+                        </div>
+                        <span class="time-slot-status ${slot.is_booked ? 'booked' : 'available'}">
+                            ${slot.is_booked ? 'Booked' : 'Available'}
+                        </span>
+                        ${!slot.is_booked ? `
+                            <div class="time-slot-actions">
+                                <button class="slot-action-btn delete" onclick="deleteSlot(${slot.id})">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Add new slot
+        async function addSlot() {
+            const startTimeStr = document.getElementById('startTime').value;
+            const endTimeStr = document.getElementById('endTime').value;
+
+            if (!startTimeStr || !endTimeStr) {
+                alert('Please select both start and end times');
+                return;
+            }
+
+            const startDateTime = parseTime(startTimeStr);
+            const endDateTime = parseTime(endTimeStr);
+
+            if (endDateTime <= startDateTime) {
+                alert('End time must be after start time');
+                return;
+            }
+
+            try {
+                const res = await fetch('/doctor/slots', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        start_time: startDateTime.toISOString(),
+                        end_time: endDateTime.toISOString()
+                    })
+                });
+
+                if (res.ok) {
+                    await loadSlots();
+                    // Auto-increment time for next slot
+                    document.getElementById('startTime').value = endTimeStr;
+                    const nextEnd = new Date(endDateTime.getTime() + 30 * 60000);
+                    document.getElementById('endTime').value = formatTime(nextEnd);
+                } else {
+                    alert('Failed to add slot');
+                }
+            } catch (error) {
+                console.error('Error adding slot:', error);
+                alert('Error adding slot');
+            }
+        }
+
+        function formatTime(date) {
+            let hours = date.getHours();
+            const minutes = date.getMinutes();
+            const period = hours >= 12 ? 'PM' : 'AM';
+            
+            if (hours > 12) hours -= 12;
+            if (hours === 0) hours = 12;
+            
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${period}`;
+        }
+
+        // Delete slot
+        async function deleteSlot(slotId) {
+            if (!confirm('Are you sure you want to delete this slot?')) return;
+
+            try {
+                const res = await fetch(`/doctor/slots/${slotId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    await loadSlots();
+                } else {
+                    alert('Failed to delete slot');
+                }
+            } catch (error) {
+                console.error('Error deleting slot:', error);
+            }
+        }
+
+        // Set duration preset
+        function setDuration(minutes) {
+            const startTimeStr = document.getElementById('startTime').value;
+            if (!startTimeStr) return;
+
+            const startTime = parseTime(startTimeStr);
+            const endTime = new Date(startTime.getTime() + minutes * 60000);
+            
+            document.getElementById('endTime').value = formatTime(endTime);
+
+            // Update active preset
+            document.querySelectorAll('.duration-preset').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+
+        // Quick actions
+        function addMultipleSlots() {
+            alert('Feature coming soon: Add multiple slots at once');
+        }
+
+        function viewAllSlots() {
+            alert('Feature coming soon: View all your slots in a list');
+        }
+
+        function copyWeekSlots() {
+            alert('Feature coming soon: Copy this week\'s schedule to next week');
+        }
+
+        function switchView(view) {
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            if (view === 'week') {
+                alert('Week view coming soon!');
+            }
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>
