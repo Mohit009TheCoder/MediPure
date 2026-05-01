@@ -1,0 +1,32 @@
+/* Footer Styles - Shared across all pages */
+footer a:hover {
+    color: #1e88e5!important;
+}
+
+footer .fab:hover {
+    transform: scale(1.2);
+    color: #1e88e5 !important;
+}
+
+/* Responsive Footer */
+@media (max-width: 768px) {
+    footer > div > div:first-child {
+        grid-template-columns: 1fr !important;
+        gap: 30px !important;
+    }
+    
+    footer > div > div:last-child {
+        flex-direction: column !important;
+        text-align: center;
+    }
+}
+
+/* Header hover effects */
+header nav a:hover {
+    color: #1e88e5 !important;
+}
+
+header nav button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(30, 136, 229, 0.4);
+}

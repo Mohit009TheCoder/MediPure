@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Medipure</title>
+    <link rel="stylesheet" href="/static/index.css">
+    <link rel="stylesheet" href="/static/footer-styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .badge-video { background: #e3f2fd; color: #1976d2; }
+        .badge-physical { background: #e8f5e9; color: #2e7d32; }
+        .alert-box {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            padding: 15px;
+            border-radius: var(--radius);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <header style="background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 1000;">
+        <div class="container" style="max-width: 1400px; margin: 0 auto; padding: 0 20px;">
+            <nav style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0;">
+                <div class="logo" style="display: flex; align-items: center; gap: 8px;">
+                    <a href="/" style="text-decoration: none; color: #1e88e5; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-hand-holding-medical"></i> Medipure
+                    </a>
+                </div>
+                <div style="display: flex; gap: 20px; align-items: center;">
+                    <a href="/" style="text-decoration: none; color: #495057; font-weight: 500; transition: color 0.3s;">Home</a>
+                    <a href="/dashboard" style="text-decoration: none; color: #1e88e5; font-weight: 600;">Dashboard</a>
+                    <a href="/profile" style="text-decoration: none; color: #495057; font-weight: 500; transition: color 0.3s;">Profile</a>
+                    <button onclick="logout()" style="padding: 10px 24px; background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s;">
+                        Logout
+                    </button>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container dashboard-grid">
+        <aside class="sidebar">
+            <ul id="menuList">
+                <!-- Menu items injected here -->
+            </ul>
+        </aside>
+
+        <main id="dashboardContent">
+            <div class="alert-box">
+                <i class="fas fa-robot" style="color: var(--warning);"></i>
+                <span><strong>AI Alert:</strong> You have no upcoming appointments for today. Stay healthy!</span>
+            </div>
+            
+            <div id="viewContainer">
+                <h1 id="viewTitle">Loading...</h1>
+                <div id="viewData" class="animate-fade"></div>
+            </div>
+        </main>
+    </div>
+
+    <footer style="background: #212529; color: white; margin-top: 80px;">
+        <div class="container" style="max-width: 1400px; margin: 0 auto; padding: 60px 20px 30px;">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px;">
+                <!-- About Section -->
+                <div>
+                    <h3 style="color: #1e88e5; margin-bottom: 20px; font-size: 1.5rem; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-hand-holding-medical"></i> Medipure
+                    </h3>
+                    <p style="color: #adb5bd; line-height: 1.6; margin-bottom: 20px;">
+                        Your trusted healthcare platform connecting patients with top-rated doctors for video consultations and physical appointments. Quality care, whenever you need it.
+                    </p>
+                    <div style="display: flex; gap: 15px;">
+                        <a href="#" style="color: #adb5bd; font-size: 1.3rem; transition: color 0.3s;"><i class="fab fa-facebook"></i></a>
+                        <a href="#" style="color: #adb5bd; font-size: 1.3rem; transition: color 0.3s;"><i class="fab fa-twitter"></i></a>
+                        <a href="#" style="color: #adb5bd; font-size: 1.3rem; transition: color 0.3s;"><i class="fab fa-instagram"></i></a>
+                        <a href="#" style="color: #adb5bd; font-size: 1.3rem; transition: color 0.3s;"><i class="fab fa-linkedin"></i></a>
+                    </div>
+                </div>
+                
+                <!-- Quick Links -->
+                <div>
+                    <h4 style="margin-bottom: 20px; font-size: 1.1rem;">Quick Links</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li style="margin-bottom: 12px;"><a href="/" style="color: #adb5bd; text-decoration: none; transition: color 0.3s;">Home</a></li>
+                        <li style="margin-bottom: 12px;"><a href="/dashboard" style="color: #adb5bd; text-decoration: none; transition: color 0.3s;">Dashboard</a></li>
+                        <li style="margin-bottom: 12px;"><a href="/profile" style="color: #adb5bd; text-decoration: none; transition: color 0.3s;">Profile</a></li>
+                        <li style="margin-bottom: 12px;"><a href="#" style="color: #adb5bd; text-decoration: none; transition: color 0.3s;">About Us</a></li>
+                    </ul>
+                </div>
+                
+                <!-- For Patients -->
+                <div>
+                    <h4 style="margin-bottom: 20px; font-size: 1.1rem;">For Patients</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li style="margin-bottom: 12px;"><a href="#" style="color: #adb5bd; text-decoration: none; transition: color 0.3s;">Find Doctors</a></li>
+                        <li style="margin-bottom: 12px;"><a href="#" style="color: #adb5bd; text-decoration: none; transition: color 0.3s;">Book Appointment</a></li>
+                        <li style="margin-bottom: 12px;"><a href="#" style="color: #adb5bd; text-decoration: none; transition: color 0.3s;">Video Consultation</a></li>
+                        <li style="margin-bottom: 12px;"><a href="#" style="color: #adb5bd; text-decoration: none; transition: color 0.3s;">Health Records</a></li>
+                    </ul>
+                </div>
+                
+                <!-- For Doctors -->
+                <div>
+                    <h4 style="margin-bottom: 20px; font-size: 1.1rem;">For Doctors</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li style="margin-bottom: 12px;"><a href="#" style="color: #adb5bd; text-decoration: none; transition: color 0.3s;">Join as Doctor</a></li>
+                        <li style="margin-bottom: 12px;"><a href="#" style="color: #adb5bd; text-decoration: none; transition: color 0.3s;">Manage Slots</a></li>
+                        <li style="margin-bottom: 12px;"><a href="#" style="color: #adb5bd; text-decoration: none; transition: color 0.3s;">Appointments</a></li>
+                        <li style="margin-bottom: 12px;"><a href="#" style="color: #adb5bd; text-decoration: none; transition: color 0.3s;">Resources</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div style="border-top: 1px solid #495057; padding-top: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+                <p style="color: #adb5bd; margin: 0;">© 2026 Medipure. All rights reserved.</p>
+                <div style="display: flex; gap: 25px;">
+                    <a href="/privacy" style="color: #adb5bd; text-decoration: none; transition: color 0.3s;">Privacy Policy</a>
+                    <a href="/terms" style="color: #adb5bd; text-decoration: none; transition: color 0.3s;">Terms of Service</a>
+                    <a href="/contact" style="color: #adb5bd; text-decoration: none; transition: color 0.3s;">Contact</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const role = localStorage.getItem('role');
+        const token = localStorage.getItem('token');
+
+        if (!token) window.location.href = '/login';
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = '/login';
+        }
+
+        const menus = {
+            patient: [
+                { id: 'search', icon: 'fa-search', text: 'Search Doctors', action: showSearch },
+                { id: 'my_appointments', icon: 'fa-calendar-check', text: 'My Appointments', action: showPatientAppointments },
+                { id: 'ai_health', icon: 'fa-robot', text: 'AI Health Check', action: showAIHealth }
+            ],
+            doctor: [
+                { id: 'manage_slots', icon: 'fa-clock', text: 'Manage Slots', action: showManageSlots },
+                { id: 'appointments', icon: 'fa-user-md', text: 'Appointments', action: showDoctorAppointments }
+            ],
+            admin: [
+                { id: 'overview', icon: 'fa-chart-line', text: 'Overview', action: showAdminOverview }
+            ]
+        };
+
+        function initDashboard() {
+            const menuList = document.getElementById('menuList');
+            menus[role].forEach(item => {
+                const li = document.createElement('li');
+                li.innerHTML = `<i class="fas ${item.icon}"></i> ${item.text}`;
+                li.onclick = () => {
+                    document.querySelectorAll('.sidebar li').forEach(l => l.classList.remove('active'));
+                    li.classList.add('active');
+                    item.action();
+                };
+                menuList.appendChild(li);
+            });
+            // Show first menu item by default
+            menuList.firstChild.click();
+        }
+
+        async function showSearch() {
+            document.getElementById('viewTitle').innerText = 'Find Your Doctor';
+            document.getElementById('viewData').innerHTML = `
+                <div class="card">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px;">
+                        <input type="text" id="areaIn" placeholder="Location">
+                        <input type="text" id="diseaseIn" placeholder="Disease/Specialty">
+                        <button class="btn btn-primary" style="background: var(--primary); color: white;" onclick="searchDoctorsDash()">Search</button>
+                    </div>
+                </div>
+                <div id="doctorResultsDash" style="margin-top: 20px;"></div>
+            `;
+        }
+
+        async function searchDoctorsDash() {
+            const area = document.getElementById('areaIn').value;
+            const disease = document.getElementById('diseaseIn').value;
+            const res = await fetch(`/doctors/search?area=${area}&disease=${disease}`);
+            const doctors = await res.json();
+            
+            const results = document.getElementById('doctorResultsDash');
+            results.innerHTML = '';
+            doctors.forEach(doc => {
+                const card = document.createElement('div');
+                card.className = 'card animate-fade';
+                card.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h3>Dr. ${doc.full_name}</h3>
+                            <p>${doc.specialty} | ${doc.area}</p>
+                        </div>
+                        <button class="btn btn-primary" style="background: var(--primary); color: white;" onclick="showSlots(${doc.id}, '${doc.full_name}')">View Slots</button>
+                    </div>
+                `;
+                results.appendChild(card);
+            });
+        }
+
+        async function showSlots(docId, docName) {
+            const res = await fetch(`/doctors/${docId}/slots`);
+            const slots = await res.json();
+            const container = document.getElementById('doctorResultsDash');
+            container.innerHTML = `<h3>Slots for Dr. ${docName}</h3>`;
+            
+            if (slots.length === 0) {
+                container.innerHTML += '<p>No available slots.</p>';
+                return;
+            }
+
+            slots.forEach(slot => {
+                const time = new Date(slot.start_time).toLocaleString();
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.style.marginBottom = '10px';
+                card.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>${time}</span>
+                        <div>
+                            <button class="btn btn-primary" onclick="book(${docId}, ${slot.id}, 'video')">Video Call</button>
+                            <button class="btn btn-outline" style="color: var(--primary); border-color: var(--primary);" onclick="book(${docId}, ${slot.id}, 'physical')">Physical</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        async function book(docId, slotId, type) {
+            const res = await fetch('/appointments/book', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ doctor_id: docId, slot_id: slotId, appointment_type: type })
+            });
+            if (res.ok) {
+                alert('Appointment booked! Check your "My Appointments" section.');
+                showPatientAppointments();
+            } else {
+                alert('Booking failed.');
+            }
+        }
+
+        async function showManageSlots() {
+            document.getElementById('viewTitle').innerText = 'Availability Management';
+            document.getElementById('viewData').innerHTML = `
+                <div class="card">
+                    <h4>Add New Slot</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; margin-top: 10px;">
+                        <input type="datetime-local" id="slotStart">
+                        <input type="datetime-local" id="slotEnd">
+                        <button class="btn btn-primary" style="background: var(--primary); color: white;" onclick="addSlot()">Add</button>
+                    </div>
+                </div>
+                <div id="slotList" style="margin-top: 20px;"></div>
+            `;
+        }
+
+        async function addSlot() {
+            const start = document.getElementById('slotStart').value;
+            const end = document.getElementById('slotEnd').value;
+            const res = await fetch('/doctor/slots', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ start_time: start, end_time: end })
+            });
+            if (res.ok) {
+                alert('Slot added!');
+                showManageSlots();
+            }
+        }
+
+        async function showDoctorAppointments() {
+            document.getElementById('viewTitle').innerText = 'My Consultations';
+            const res = await fetch('/doctor/appointments', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const apps = await res.json();
+            const container = document.getElementById('viewData');
+            container.innerHTML = '';
+            apps.forEach(app => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div style="display: flex; justify-content: space-between;">
+                        <div>
+                            <strong>Patient ID: ${app.patient_id}</strong>
+                            <p>Type: <span class="badge badge-${app.appointment_type}">${app.appointment_type}</span></p>
+                        </div>
+                        <span class="badge" style="background: #eee;">${app.status}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        async function showPatientAppointments() {
+            document.getElementById('viewTitle').innerText = 'My Scheduled Care';
+            const res = await fetch('/patient/appointments', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const apps = await res.json();
+            const container = document.getElementById('viewData');
+            container.innerHTML = '';
+            
+            if (apps.length === 0) {
+                container.innerHTML = '<div class="card"><p>No appointments scheduled yet.</p></div>';
+                return;
+            }
+            
+            apps.forEach(app => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div style="display: flex; justify-content: space-between;">
+                        <div>
+                            <strong>Doctor ID: ${app.doctor_id}</strong>
+                            <p>Type: <span class="badge badge-${app.appointment_type}">${app.appointment_type}</span></p>
+                            <p style="font-size: 0.9rem; color: #666;">Booked: ${new Date(app.created_at).toLocaleString()}</p>
+                        </div>
+                        <span class="badge" style="background: #eee;">${app.status}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        async function showAIHealth() {
+            document.getElementById('viewTitle').innerText = 'AI Health Diagnosis Assistant';
+            document.getElementById('viewData').innerHTML = `
+                <div class="card">
+                    <p>Describe your symptoms below, and our AI will suggest the best specialist for you.</p>
+                    <textarea id="symptomsIn" style="width: 100%; height: 100px; margin-top: 10px; padding: 10px; border-radius: 5px; border: 1px solid #ddd;" placeholder="e.g. I have a persistent cough and mild fever..."></textarea>
+                    <button class="btn btn-primary" style="background: var(--primary); color: white; margin-top: 10px;" onclick="analyzeSymptoms()">Analyze Symptoms</button>
+                </div>
+                <div id="aiResult" style="margin-top: 20px;"></div>
+            `;
+        }
+
+        function analyzeSymptoms() {
+            const sym = document.getElementById('symptomsIn').value.toLowerCase();
+            const result = document.getElementById('aiResult');
+            result.innerHTML = '<div class="card"><h4>AI Analysis Running...</h4></div>';
+            
+            setTimeout(() => {
+                let suggestion = "General Physician";
+                if (sym.includes('heart') || sym.includes('chest')) suggestion = "Cardiologist";
+                if (sym.includes('brain') || sym.includes('headache')) suggestion = "Neurologist";
+                if (sym.includes('skin') || sym.includes('rash')) suggestion = "Dermatologist";
+                
+                result.innerHTML = `
+                    <div class="card animate-fade" style="border-left: 5px solid var(--success);">
+                        <h4 style="color: var(--success);"><i class="fas fa-check-circle"></i> AI Recommendation</h4>
+                        <p style="margin-top: 10px;">Based on your symptoms, we recommend consulting a <strong>${suggestion}</strong>.</p>
+                        <button class="btn btn-primary" style="background: var(--primary); color: white; margin-top: 10px;" onclick="autoSearch('${suggestion}')">Find ${suggestion}s Near Me</button>
+                    </div>
+                `;
+            }, 1500);
+        }
+
+        function autoSearch(specialty) {
+            showSearch();
+            setTimeout(() => {
+                document.getElementById('diseaseIn').value = specialty;
+                searchDoctorsDash();
+            }, 100);
+        }
+
+        async function showAdminOverview() {
+            document.getElementById('viewTitle').innerText = 'Admin Control Panel';
+            document.getElementById('viewData').innerHTML = `
+                <div class="grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="card"><h3>Total Doctors</h3><p>24 Active</p></div>
+                    <div class="card"><h3>Appointments Today</h3><p>15 Scheduled</p></div>
+                </div>
+            `;
+        }
+
+        initDashboard();
+    </script>
+</body>
+</html>

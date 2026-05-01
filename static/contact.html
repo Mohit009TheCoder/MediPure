@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us - Medipure</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/index.css">
+    <link rel="stylesheet" href="/static/footer-styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: #f8f9fa;
+        }
+        
+        .content-container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        
+        .hero-section {
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+            color: white;
+            padding: 60px 40px;
+            border-radius: 20px;
+            text-align: center;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 40px rgba(30, 136, 229, 0.3);
+        }
+        
+        .hero-section h1 {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+        }
+        
+        .hero-section p {
+            font-size: 1.2rem;
+            opacity: 0.95;
+        }
+        
+        .contact-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .contact-card {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+        }
+        
+        .contact-card h2 {
+            color: #1e88e5;
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .contact-info-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+        
+        .contact-info-item:hover {
+            background: #e3f2fd;
+            transform: translateX(5px);
+        }
+        
+        .contact-info-item i {
+            font-size: 1.5rem;
+            color: #1e88e5;
+            margin-top: 5px;
+        }
+        
+        .contact-info-item div h3 {
+            margin: 0 0 8px 0;
+            color: #212529;
+            font-size: 1.1rem;
+        }
+        
+        .contact-info-item div p {
+            margin: 0;
+            color: #6c757d;
+            line-height: 1.6;
+        }
+        
+        .contact-info-item div a {
+            color: #1e88e5;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: all 0.3s;
+            background: #f8f9fa;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #1e88e5;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(30, 136, 229, 0.1);
+        }
+        
+        .form-group textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+        
+        .btn-primary {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(30, 136, 229, 0.4);
+        }
+        
+        .map-section {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+            margin-bottom: 40px;
+        }
+        
+        .map-section h2 {
+            color: #1e88e5;
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+        }
+        
+        .map-placeholder {
+            width: 100%;
+            height: 400px;
+            background: #e9ecef;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            font-size: 1.2rem;
+        }
+        
+        .faq-section {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+        }
+        
+        .faq-section h2 {
+            color: #1e88e5;
+            margin-bottom: 30px;
+            font-size: 1.8rem;
+        }
+        
+        .faq-item {
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border-left: 4px solid #1e88e5;
+        }
+        
+        .faq-item h3 {
+            color: #212529;
+            margin: 0 0 10px 0;
+            font-size: 1.1rem;
+        }
+        
+        .faq-item p {
+            color: #6c757d;
+            margin: 0;
+            line-height: 1.6;
+        }
+        
+        @media (max-width: 768px) {
+            .contact-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .hero-section {
+                padding: 40px 20px;
+            }
+            
+            .hero-section h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header style="background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+        <div class="container" style="max-width: 1400px; margin: 0 auto; padding: 0 20px;">
+            <nav style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0;">
+                <div class="logo">
+                    <a href="/" style="text-decoration: none; color: #1e88e5; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                        <img src="/static/logo.svg" alt="Medipure Logo" style="width: 40px; height: 40px;"> Medipure
+                    </a>
+                </div>
+                <div>
+                    <a href="/" style="text-decoration: none; color: #495057; font-weight: 500; transition: color 0.3s;">
+                        <i class="fas fa-arrow-left"></i> Back to Home
+                    </a>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <div class="content-container">
+        <div class="hero-section">
+            <h1><i class="fas fa-comments"></i> Get in Touch</h1>
+            <p>We're here to help! Reach out to us for any questions or support.</p>
+        </div>
+
+        <div class="contact-grid">
+            <!-- Contact Information -->
+            <div class="contact-card">
+                <h2><i class="fas fa-info-circle"></i> Contact Information</h2>
+                
+                <div class="contact-info-item">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <div>
+                        <h3>Address</h3>
+                        <p>123 Healthcare Avenue<br>Medical District<br>New York, NY 10001</p>
+                    </div>
+                </div>
+                
+                <div class="contact-info-item">
+                    <i class="fas fa-phone"></i>
+                    <div>
+                        <h3>Phone</h3>
+                        <p><a href="tel:+18001234567">+1 (800) 123-4567</a><br>
+                        Mon-Fri: 8:00 AM - 8:00 PM<br>
+                        Sat-Sun: 9:00 AM - 5:00 PM</p>
+                    </div>
+                </div>
+                
+                <div class="contact-info-item">
+                    <i class="fas fa-envelope"></i>
+                    <div>
+                        <h3>Email</h3>
+                        <p>General: <a href="mailto:info@medipure.com">info@medipure.com</a><br>
+                        Support: <a href="mailto:support@medipure.com">support@medipure.com</a><br>
+                        Doctors: <a href="mailto:doctors@medipure.com">doctors@medipure.com</a></p>
+                    </div>
+                </div>
+                
+                <div class="contact-info-item">
+                    <i class="fas fa-clock"></i>
+                    <div>
+                        <h3>Business Hours</h3>
+                        <p>Monday - Friday: 8:00 AM - 8:00 PM<br>
+                        Saturday: 9:00 AM - 5:00 PM<br>
+                        Sunday: 9:00 AM - 5:00 PM<br>
+                        <em>Emergency support available 24/7</em></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Form -->
+            <div class="contact-card">
+                <h2><i class="fas fa-paper-plane"></i> Send Us a Message</h2>
+                <form id="contactForm" onsubmit="handleContactSubmit(event)">
+                    <div class="form-group">
+                        <label><i class="fas fa-user"></i> Full Name</label>
+                        <input type="text" id="contactName" placeholder="John Doe" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-envelope"></i> Email Address</label>
+                        <input type="email" id="contactEmail" placeholder="you@example.com" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-phone"></i> Phone Number</label>
+                        <input type="tel" id="contactPhone" placeholder="+1 234 567 8900">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-tag"></i> Subject</label>
+                        <select id="contactSubject" required>
+                            <option value="">Select a subject</option>
+                            <option value="general">General Inquiry</option>
+                            <option value="support">Technical Support</option>
+                            <option value="appointment">Appointment Issue</option>
+                            <option value="billing">Billing Question</option>
+                            <option value="doctor">Doctor Registration</option>
+                            <option value="feedback">Feedback</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-comment-alt"></i> Message</label>
+                        <textarea id="contactMessage" placeholder="Tell us how we can help you..." required></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-paper-plane"></i> Send Message
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Map Section -->
+        <div class="map-section">
+            <h2><i class="fas fa-map"></i> Find Us</h2>
+            <div class="map-placeholder">
+                <i class="fas fa-map-marked-alt" style="font-size: 3rem;"></i>
+                <span style="margin-left: 15px;">Map Integration Coming Soon</span>
+            </div>
+        </div>
+
+        <!-- FAQ Section -->
+        <div class="faq-section">
+            <h2><i class="fas fa-question-circle"></i> Frequently Asked Questions</h2>
+            
+            <div class="faq-item">
+                <h3>How quickly will I receive a response?</h3>
+                <p>We typically respond to all inquiries within 24 hours during business days. For urgent matters, please call our support line.</p>
+            </div>
+            
+            <div class="faq-item">
+                <h3>Can I schedule an appointment through this form?</h3>
+                <p>For appointment scheduling, please log in to your account and use our booking system. This form is for general inquiries and support.</p>
+            </div>
+            
+            <div class="faq-item">
+                <h3>How do I become a doctor on Medipure?</h3>
+                <p>Click "Join Now" and select "Doctor" during registration. You'll need to provide your medical license and credentials for verification.</p>
+            </div>
+            
+            <div class="faq-item">
+                <h3>Is there emergency support available?</h3>
+                <p>For medical emergencies, please call 911 immediately. For platform technical emergencies, our 24/7 support line is available at +1 (800) 123-4567.</p>
+            </div>
+            
+            <div class="faq-item">
+                <h3>How can I update my account information?</h3>
+                <p>Log in to your account and navigate to the Profile section where you can update all your information.</p>
+            </div>
+        </div>
+    </div>
+
+    <footer style="background: #212529; color: white; margin-top: 80px;">
+        <div class="container" style="max-width: 1400px; margin: 0 auto; padding: 60px 20px 30px;">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px;">
+                <div>
+                    <h3 style="color: #1e88e5; margin-bottom: 20px; font-size: 1.5rem; display: flex; align-items: center; gap: 8px;">
+                        <img src="/static/logo.svg" alt="Medipure Logo" style="width: 32px; height: 32px;"> Medipure
+                    </h3>
+                    <p style="color: #adb5bd; line-height: 1.6; margin-bottom: 20px;">
+                        Your trusted healthcare platform connecting patients with top-rated doctors for video consultations and physical appointments.
+                    </p>
+                </div>
+                
+                <div>
+                    <h4 style="margin-bottom: 20px; font-size: 1.1rem;">Quick Links</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li style="margin-bottom: 12px;"><a href="/" style="color: #adb5bd; text-decoration: none;">Home</a></li>
+                        <li style="margin-bottom: 12px;"><a href="/login" style="color: #adb5bd; text-decoration: none;">Login</a></li>
+                        <li style="margin-bottom: 12px;"><a href="/contact" style="color: #adb5bd; text-decoration: none;">Contact</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 style="margin-bottom: 20px; font-size: 1.1rem;">Legal</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li style="margin-bottom: 12px;"><a href="/privacy" style="color: #adb5bd; text-decoration: none;">Privacy Policy</a></li>
+                        <li style="margin-bottom: 12px;"><a href="/terms" style="color: #adb5bd; text-decoration: none;">Terms of Service</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 style="margin-bottom: 20px; font-size: 1.1rem;">Connect</h4>
+                    <div style="display: flex; gap: 15px;">
+                        <a href="#" style="color: #adb5bd; font-size: 1.3rem;"><i class="fab fa-facebook"></i></a>
+                        <a href="#" style="color: #adb5bd; font-size: 1.3rem;"><i class="fab fa-twitter"></i></a>
+                        <a href="#" style="color: #adb5bd; font-size: 1.3rem;"><i class="fab fa-instagram"></i></a>
+                        <a href="#" style="color: #adb5bd; font-size: 1.3rem;"><i class="fab fa-linkedin"></i></a>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="border-top: 1px solid #495057; padding-top: 30px; text-align: center;">
+                <p style="color: #adb5bd; margin: 0;">© 2026 Medipure. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        function handleContactSubmit(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('contactName').value;
+            const email = document.getElementById('contactEmail').value;
+            const phone = document.getElementById('contactPhone').value;
+            const subject = document.getElementById('contactSubject').value;
+            const message = document.getElementById('contactMessage').value;
+            
+            // In a real application, this would send to a backend
+            alert(`Thank you, ${name}! Your message has been received. We'll get back to you at ${email} within 24 hours.`);
+            
+            // Reset form
+            document.getElementById('contactForm').reset();
+        }
+    </script>
+</body>
+</html>

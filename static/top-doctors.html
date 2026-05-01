@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top Rated Doctors - Medipure</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/index.css">
+    <link rel="stylesheet" href="/static/footer-styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8f9fa;
+            color: #333;
+        }
+
+        .page-header {
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+            color: white;
+            padding: 60px 20px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(30, 136, 229, 0.3);
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+        }
+
+        .page-header p {
+            font-size: 1.2rem;
+            opacity: 0.95;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .doctor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .doctor-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            transition: all 0.3s;
+            border: 1px solid #e9ecef;
+        }
+
+        .doctor-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        }
+
+        .doctor-header {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 20px 15px;
+            text-align: center;
+            position: relative;
+        }
+
+        .doctor-avatar {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: white;
+            font-weight: bold;
+            margin: 0 auto 12px;
+            border: 3px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .doctor-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #212529;
+            margin-bottom: 4px;
+        }
+
+        .doctor-specialty {
+            font-size: 0.9rem;
+            color: #1e88e5;
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .doctor-qualification {
+            font-size: 0.75rem;
+            color: #6c757d;
+        }
+
+        .doctor-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            padding: 12px 10px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #1e88e5;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.65rem;
+            color: #6c757d;
+            margin-top: 2px;
+            display: block;
+        }
+
+        .doctor-body {
+            padding: 15px;
+        }
+
+        .info-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            font-size: 0.8rem;
+            color: #495057;
+        }
+
+        .info-row i {
+            color: #1e88e5;
+            width: 16px;
+            font-size: 0.85rem;
+        }
+
+        .rating-display {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .stars {
+            color: #ffc107;
+            font-size: 0.95rem;
+        }
+
+        .rating-text {
+            font-weight: 600;
+            color: #212529;
+            font-size: 0.9rem;
+        }
+
+        .reviews-text {
+            color: #6c757d;
+            font-size: 0.75rem;
+        }
+
+        .success-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+            color: white;
+            border-radius: 15px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            margin-bottom: 10px;
+        }
+
+        .awards-section {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .section-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #495057;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .award-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #fff3e0;
+            color: #e65100;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            margin: 3px;
+            font-weight: 500;
+        }
+
+        .cert-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #e3f2fd;
+            color: #1976d2;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            margin: 3px;
+            font-weight: 500;
+        }
+
+        .lang-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #f3e5f5;
+            color: #7b1fa2;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            margin: 3px;
+            font-weight: 500;
+        }
+
+        .doctor-actions {
+            padding: 12px 15px;
+            background: #f8f9fa;
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(30, 136, 229, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(30, 136, 229, 0.4);
+        }
+
+        .btn-outline {
+            background: white;
+            color: #1e88e5;
+            border: 2px solid #1e88e5;
+        }
+
+        .btn-outline:hover {
+            background: #1e88e5;
+            color: white;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .loading i {
+            font-size: 3rem;
+            color: #1e88e5;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .doctor-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .page-header h1 {
+                font-size: 2rem;
+            }
+
+            .doctor-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            overflow-y: auto;
+        }
+
+        .modal-content {
+            background: white;
+            margin: 50px auto;
+            padding: 0;
+            max-width: 800px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 20px 20px 0 0;
+            position: relative;
+        }
+
+        .close {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            font-size: 2rem;
+            color: white;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        .close:hover {
+            background: rgba(255,255,255,0.2);
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            padding: 30px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .detail-section {
+            margin-bottom: 25px;
+        }
+
+        .detail-section h3 {
+            color: #1e88e5;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .detail-text {
+            color: #495057;
+            line-height: 1.8;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+    <header style="background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 999;">
+        <div class="container" style="max-width: 1400px; margin: 0 auto; padding: 0 20px;">
+            <nav style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0;">
+                <div class="logo">
+                    <a href="/" style="text-decoration: none; color: #1e88e5; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                        <img src="/static/logo.svg" alt="Medipure Logo" style="width: 40px; height: 40px;"> Medipure
+                    </a>
+                </div>
+                <div style="display: flex; gap: 20px; align-items: center;">
+                    <a href="/" style="text-decoration: none; color: #495057; font-weight: 500;">Home</a>
+                    <a href="/top-doctors" style="text-decoration: none; color: #1e88e5; font-weight: 600;">Top Doctors</a>
+                    <a href="/login" style="padding: 10px 24px; background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%); color: white; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                        Login
+                    </a>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <div class="page-header">
+        <h1><i class="fas fa-star"></i> Top Rated Doctors</h1>
+        <p>Meet our most experienced and highly-rated medical professionals</p>
+    </div>
+
+    <div class="container">
+        <div id="doctorGrid" class="doctor-grid">
+            <div class="loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Loading top doctors...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Doctor Detail Modal -->
+    <div id="doctorModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" onclick="closeModal()">&times;</span>
+                <h2 id="modalDoctorName">Doctor Name</h2>
+                <p id="modalDoctorSpecialty" style="opacity: 0.9; margin-top: 10px;"></p>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Content will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <footer style="background: #212529; color: white; margin-top: 80px;">
+        <div class="container" style="padding: 40px 20px;">
+            <div style="text-align: center;">
+                <p style="color: #adb5bd;">© 2026 Medipure. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        async function loadTopDoctors() {
+            try {
+                const response = await fetch('/doctors/top-rated?limit=20');
+                const doctors = await response.json();
+                
+                const grid = document.getElementById('doctorGrid');
+                grid.innerHTML = '';
+                
+                if (doctors.length === 0) {
+                    grid.innerHTML = '<p style="text-align: center; color: #6c757d;">No doctors found.</p>';
+                    return;
+                }
+                
+                doctors.forEach(doctor => {
+                    const card = createDoctorCard(doctor);
+                    grid.appendChild(card);
+                });
+                
+            } catch (error) {
+                console.error('Error loading doctors:', error);
+                document.getElementById('doctorGrid').innerHTML = '<p style="text-align: center; color: #dc3545;">Failed to load doctors. Please try again.</p>';
+            }
+        }
+
+        function createDoctorCard(doctor) {
+            const card = document.createElement('div');
+            card.className = 'doctor-card';
+            
+            const initials = doctor.full_name.split(' ').map(n => n[0]).join('').substring(0, 2);
+            const stars = '★'.repeat(Math.floor(doctor.rating)) + (doctor.rating % 1 >= 0.5 ? '½' : '') + '☆'.repeat(5 - Math.ceil(doctor.rating));
+            
+            const awards = doctor.awards ? doctor.awards.split(',').slice(0, 3) : [];
+            const certs = doctor.certifications ? doctor.certifications.split(',').slice(0, 3) : [];
+            const langs = doctor.languages ? doctor.languages.split(',') : [];
+            
+            card.innerHTML = `
+                <div class="doctor-header">
+                    <div class="doctor-avatar">${initials}</div>
+                    <div class="doctor-name">${doctor.full_name}</div>
+                    <div class="doctor-specialty">${doctor.specialty}</div>
+                    <div class="doctor-qualification">${doctor.qualification}</div>
+                </div>
+                
+                <div class="doctor-stats">
+                    <div class="stat-item">
+                        <span class="stat-value">${doctor.total_patients_treated.toLocaleString()}</span>
+                        <span class="stat-label">Patients Treated</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">${doctor.patients_cured.toLocaleString()}</span>
+                        <span class="stat-label">Patients Cured</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">${doctor.success_rate}%</span>
+                        <span class="stat-label">Success Rate</span>
+                    </div>
+                </div>
+                
+                <div class="doctor-body">
+                    <div class="rating-display">
+                        <span class="stars">${stars}</span>
+                        <span class="rating-text">${doctor.rating.toFixed(1)}</span>
+                        <span class="reviews-text">(${doctor.total_reviews} reviews)</span>
+                    </div>
+                    
+                    <div class="success-badge">
+                        <i class="fas fa-check-circle"></i>
+                        ${doctor.success_rate}% Success Rate
+                    </div>
+                    
+                    <div class="info-row">
+                        <i class="fas fa-briefcase"></i>
+                        <span>${doctor.experience} years of experience</span>
+                    </div>
+                    
+                    <div class="info-row">
+                        <i class="fas fa-hospital"></i>
+                        <span>${doctor.clinic_name}</span>
+                    </div>
+                    
+                    <div class="info-row">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>${doctor.area}, ${doctor.city}</span>
+                    </div>
+                    
+                    <div class="info-row">
+                        <i class="fas fa-rupee-sign"></i>
+                        <span>₹${doctor.consultation_fee} consultation fee</span>
+                    </div>
+                    
+                    ${awards.length > 0 ? `
+                        <div class="awards-section">
+                            <div class="section-title">🏆 Recent Awards</div>
+                            ${awards.map(award => `<span class="award-badge">${award.trim()}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    ${langs.length > 0 ? `
+                        <div class="awards-section">
+                            <div class="section-title">🌐 Languages</div>
+                            ${langs.map(lang => `<span class="lang-badge">${lang.trim()}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <div class="doctor-actions">
+                    <button class="btn btn-primary" onclick="viewDoctorProfile(${doctor.id})">
+                        <i class="fas fa-user-md"></i> View Full Profile
+                    </button>
+                    <a href="/login" class="btn btn-outline">
+                        <i class="fas fa-calendar-plus"></i> Book Now
+                    </a>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        async function viewDoctorProfile(doctorId) {
+            try {
+                const response = await fetch(`/doctors/${doctorId}/profile`);
+                const doctor = await response.json();
+                
+                document.getElementById('modalDoctorName').textContent = doctor.full_name;
+                document.getElementById('modalDoctorSpecialty').textContent = `${doctor.specialty} • ${doctor.qualification}`;
+                
+                const stars = '★'.repeat(Math.floor(doctor.rating)) + (doctor.rating % 1 >= 0.5 ? '½' : '') + '☆'.repeat(5 - Math.ceil(doctor.rating));
+                
+                document.getElementById('modalBody').innerHTML = `
+                    <div class="detail-section">
+                        <div class="rating-display">
+                            <span class="stars">${stars}</span>
+                            <span class="rating-text">${doctor.rating.toFixed(1)}</span>
+                            <span class="reviews-text">(${doctor.total_reviews} reviews)</span>
+                        </div>
+                        <div class="success-badge">
+                            <i class="fas fa-check-circle"></i>
+                            ${doctor.success_rate}% Success Rate • ${doctor.patients_cured.toLocaleString()} Patients Cured
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3><i class="fas fa-user-md"></i> About</h3>
+                        <p class="detail-text">${doctor.bio}</p>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3><i class="fas fa-graduation-cap"></i> Education</h3>
+                        <p class="detail-text">${doctor.education || 'Not specified'}</p>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3><i class="fas fa-certificate"></i> Certifications</h3>
+                        ${doctor.certifications.map(cert => `<span class="cert-badge">${cert.trim()}</span>`).join('')}
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3><i class="fas fa-trophy"></i> Awards & Recognition</h3>
+                        ${doctor.awards.map(award => `<span class="award-badge">${award.trim()}</span>`).join('')}
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3><i class="fas fa-chart-line"></i> Statistics</h3>
+                        <div class="doctor-stats">
+                            <div class="stat-item">
+                                <span class="stat-value">${doctor.total_patients_treated.toLocaleString()}</span>
+                                <span class="stat-label">Total Patients</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value">${doctor.patients_cured.toLocaleString()}</span>
+                                <span class="stat-label">Patients Cured</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value">${doctor.experience}</span>
+                                <span class="stat-label">Years Experience</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3><i class="fas fa-info-circle"></i> Contact Information</h3>
+                        <div class="info-row">
+                            <i class="fas fa-hospital"></i>
+                            <span>${doctor.clinic_name}</span>
+                        </div>
+                        <div class="info-row">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>${doctor.address}, ${doctor.city}</span>
+                        </div>
+                        <div class="info-row">
+                            <i class="fas fa-phone"></i>
+                            <span>${doctor.phone}</span>
+                        </div>
+                        <div class="info-row">
+                            <i class="fas fa-rupee-sign"></i>
+                            <span>₹${doctor.consultation_fee} consultation fee</span>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 30px;">
+                        <a href="/login" class="btn btn-primary" style="display: inline-flex;">
+                            <i class="fas fa-calendar-plus"></i> Book Appointment
+                        </a>
+                    </div>
+                `;
+                
+                document.getElementById('doctorModal').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error loading doctor profile:', error);
+                alert('Failed to load doctor profile. Please try again.');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('doctorModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('doctorModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+
+        // Load doctors on page load
+        loadTopDoctors();
+    </script>
+</body>
+</html>
