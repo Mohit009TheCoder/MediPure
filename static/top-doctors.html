@@ -78,16 +78,8 @@
             width: 70px;
             height: 70px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            color: white;
-            font-weight: bold;
             margin: 0 auto 12px;
-            border: 3px solid white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: block;
         }
 
         .doctor-name {
@@ -491,9 +483,12 @@
             const certs = doctor.certifications ? doctor.certifications.split(',').slice(0, 3) : [];
             const langs = doctor.languages ? doctor.languages.split(',') : [];
             
+            // Generate profile picture URL using UI Avatars
+            const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor.full_name)}&size=200&background=1e88e5&color=ffffff&bold=true&font-size=0.4`;
+            
             card.innerHTML = `
                 <div class="doctor-header">
-                    <div class="doctor-avatar">${initials}</div>
+                    <img src="${avatarUrl}" alt="${doctor.full_name}" class="doctor-avatar" style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                     <div class="doctor-name">${doctor.full_name}</div>
                     <div class="doctor-specialty">${doctor.specialty}</div>
                     <div class="doctor-qualification">${doctor.qualification}</div>
@@ -584,7 +579,14 @@
                 
                 const stars = '★'.repeat(Math.floor(doctor.rating)) + (doctor.rating % 1 >= 0.5 ? '½' : '') + '☆'.repeat(5 - Math.ceil(doctor.rating));
                 
+                // Generate profile picture URL
+                const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor.full_name)}&size=300&background=1e88e5&color=fff&bold=true&format=svg`;
+                
                 document.getElementById('modalBody').innerHTML = `
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <img src="${avatarUrl}" alt="${doctor.full_name}" style="width: 150px; height: 150px; border-radius: 50%; border: 5px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); object-fit: cover;">
+                    </div>
+                    
                     <div class="detail-section">
                         <div class="rating-display">
                             <span class="stars">${stars}</span>
