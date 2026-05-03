@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment - Medipure</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .payment-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .payment-header {
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .payment-header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+
+        .payment-header p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .payment-body {
+            padding: 30px;
+        }
+
+        .appointment-details {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        .detail-value {
+            color: #212529;
+            font-weight: 600;
+        }
+
+        .amount-section {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        .amount-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .amount-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1e88e5;
+        }
+
+        .payment-button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .payment-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+
+        .payment-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .secure-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: #6c757d;
+            font-size: 0.85rem;
+            margin-top: 15px;
+        }
+
+        .secure-badge i {
+            color: #4caf50;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1e88e5;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .success-message {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #1e88e5;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+
+        .back-button:hover {
+            gap: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="payment-container">
+        <div class="payment-header">
+            <h1><i class="fas fa-credit-card"></i> Secure Payment</h1>
+            <p>Complete your appointment booking</p>
+        </div>
+
+        <div class="payment-body">
+            <div id="loadingSection" class="loading">
+                <div class="spinner"></div>
+                <p>Loading payment details...</p>
+            </div>
+
+            <div id="paymentSection" style="display: none;">
+                <div class="error-message" id="errorMessage"></div>
+                <div class="success-message" id="successMessage"></div>
+
+                <div class="appointment-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Doctor</span>
+                        <span class="detail-value" id="doctorName">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Specialty</span>
+                        <span class="detail-value" id="doctorSpecialty">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Appointment Type</span>
+                        <span class="detail-value" id="appointmentType">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Date & Time</span>
+                        <span class="detail-value" id="slotTime">-</span>
+                    </div>
+                </div>
+
+                <div class="amount-section">
+                    <div class="amount-label">Consultation Fee</div>
+                    <div class="amount-value">₹<span id="amount">0</span></div>
+                </div>
+
+                <button class="payment-button" id="payButton" onclick="initiatePayment()">
+                    <i class="fas fa-lock"></i>
+                    Pay Securely with Razorpay
+                </button>
+
+                <div class="secure-badge">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Secured by Razorpay | 256-bit SSL Encryption</span>
+                </div>
+
+                <a href="/dashboard" class="back-button">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login';
+        }
+
+        let paymentData = null;
+
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const doctorId = urlParams.get('doctor_id');
+        const slotId = urlParams.get('slot_id');
+        const appointmentType = urlParams.get('type');
+
+        async function createOrder() {
+            try {
+                const response = await fetch('/appointments/create-order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        doctor_id: parseInt(doctorId),
+                        slot_id: parseInt(slotId),
+                        appointment_type: appointmentType
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to create order');
+                }
+
+                paymentData = await response.json();
+                displayPaymentDetails();
+            } catch (error) {
+                showError(error.message);
+                document.getElementById('loadingSection').style.display = 'none';
+                document.getElementById('paymentSection').style.display = 'block';
+            }
+        }
+
+        function displayPaymentDetails() {
+            document.getElementById('doctorName').textContent = paymentData.doctor_name;
+            document.getElementById('doctorSpecialty').textContent = paymentData.doctor_specialty || 'General Physician';
+            document.getElementById('appointmentType').textContent = paymentData.appointment_type === 'video' ? 'Video Consultation' : 'Physical Visit';
+            
+            const slotDate = new Date(paymentData.slot_time);
+            document.getElementById('slotTime').textContent = slotDate.toLocaleString('en-US', {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            document.getElementById('amount').textContent = paymentData.amount;
+
+            document.getElementById('loadingSection').style.display = 'none';
+            document.getElementById('paymentSection').style.display = 'block';
+        }
+
+        function initiatePayment() {
+            if (!paymentData) {
+                showError('Payment data not loaded');
+                return;
+            }
+
+            const options = {
+                key: paymentData.key_id,
+                amount: paymentData.amount * 100, // Amount in paise
+                currency: paymentData.currency,
+                name: 'Medipure',
+                description: `Consultation with ${paymentData.doctor_name}`,
+                image: '/static/logo.svg',
+                order_id: paymentData.order_id,
+                handler: function (response) {
+                    verifyPayment(response);
+                },
+                prefill: {
+                    name: localStorage.getItem('full_name') || '',
+                    email: localStorage.getItem('email') || '',
+                    contact: ''
+                },
+                notes: {
+                    appointment_id: paymentData.appointment_id
+                },
+                theme: {
+                    color: '#1e88e5'
+                },
+                modal: {
+                    ondismiss: function() {
+                        showError('Payment cancelled. Please try again.');
+                    }
+                }
+            };
+
+            const rzp = new Razorpay(options);
+            rzp.on('payment.failed', function (response) {
+                showError('Payment failed: ' + response.error.description);
+            });
+            rzp.open();
+        }
+
+        async function verifyPayment(response) {
+            document.getElementById('payButton').disabled = true;
+            document.getElementById('payButton').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+
+            try {
+                const verifyResponse = await fetch('/appointments/verify-payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature,
+                        appointment_id: paymentData.appointment_id
+                    })
+                });
+
+                if (!verifyResponse.ok) {
+                    throw new Error('Payment verification failed');
+                }
+
+                const result = await verifyResponse.json();
+                showSuccess('Payment successful! Redirecting to receipt...');
+                
+                // Redirect to receipt page
+                setTimeout(() => {
+                    window.location.href = `/receipt?receipt_id=${result.receipt_id}&appointment_id=${result.appointment_id}`;
+                }, 2000);
+            } catch (error) {
+                showError(error.message);
+                document.getElementById('payButton').disabled = false;
+                document.getElementById('payButton').innerHTML = '<i class="fas fa-lock"></i> Pay Securely with Razorpay';
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('successMessage');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+        }
+
+        // Initialize
+        if (doctorId && slotId && appointmentType) {
+            createOrder();
+        } else {
+            showError('Invalid payment parameters');
+            document.getElementById('loadingSection').style.display = 'none';
+            document.getElementById('paymentSection').style.display = 'block';
+        }
+    </script>
+</body>
+</html>

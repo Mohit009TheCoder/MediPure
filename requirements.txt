@@ -4,3 +4,6 @@ sqlalchemy
 pydantic
 python-multipart
 pytz
+razorpay
+python-jose[cryptography]
+passlib[bcrypt]

@@ -9,8 +9,17 @@ import database
 import auth
 from pydantic import BaseModel
 from typing import List, Optional
+import razorpay
+import razorpay_config
+import hmac
+import hashlib
+import random
+import string
 
 app = FastAPI(title="Medipure - Doctor Appointment System")
+
+# Initialize Razorpay client
+razorpay_client = razorpay.Client(auth=(razorpay_config.RAZORPAY_KEY_ID, razorpay_config.RAZORPAY_KEY_SECRET))
 
 # Define IST timezone
 IST = pytz.timezone('Asia/Kolkata')
@@ -32,6 +41,57 @@ def ist_to_utc(ist_dt):
         # If datetime is naive, assume it's IST
         ist_dt = IST.localize(ist_dt)
     return ist_dt.astimezone(pytz.utc)
+
+def generate_receipt_number():
+    """Generate unique receipt number"""
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    return f"RCP-{timestamp}-{random_str}"
+
+def generate_withdrawal_number():
+    """Generate unique withdrawal number"""
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    return f"WD-{timestamp}-{random_str}"
+
+def calculate_platform_fee(amount, fee_percentage=20):
+    """Calculate platform fee and doctor earnings"""
+    platform_fee = int(amount * fee_percentage / 100)
+    doctor_earnings = amount - platform_fee
+    return platform_fee, doctor_earnings
+
+def update_doctor_earnings(db: Session, doctor_id: int, consultation_fee: int):
+    """Update doctor earnings after successful payment"""
+    # Calculate platform fee and doctor earnings
+    platform_fee, doctor_earnings = calculate_platform_fee(consultation_fee)
+    
+    # Get or create doctor earnings record
+    earnings = db.query(database.DoctorEarnings).filter(
+        database.DoctorEarnings.doctor_id == doctor_id
+    ).first()
+    
+    if not earnings:
+        earnings = database.DoctorEarnings(
+            doctor_id=doctor_id,
+            total_consultations=0,
+            total_revenue=0,
+            platform_fees_paid=0,
+            total_earnings=0,
+            withdrawn_amount=0,
+            pending_amount=0
+        )
+        db.add(earnings)
+    
+    # Update earnings
+    earnings.total_consultations += 1
+    earnings.total_revenue += consultation_fee
+    earnings.platform_fees_paid += platform_fee
+    earnings.total_earnings += doctor_earnings
+    earnings.pending_amount += doctor_earnings
+    earnings.last_updated = datetime.utcnow()
+    
+    db.commit()
+    return platform_fee, doctor_earnings
 
 # Mount static files for the frontend
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -86,6 +146,19 @@ class AppointmentCreate(BaseModel):
     doctor_id: int
     slot_id: int
     appointment_type: str # video, physical
+
+class PaymentVerification(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+    appointment_id: int
+
+class WithdrawalRequest(BaseModel):
+    amount: int  # Amount in rupees
+    account_holder_name: str
+    account_number: str
+    ifsc_code: str
+    bank_name: str
 
 # AI Automation: Alert System
 def send_ai_alert(email: str, message: str):
@@ -434,34 +507,634 @@ def get_doctor_slots(doctor_id: int, db: Session = Depends(database.get_db)):
         })
     return result
 
-@app.post("/appointments/book")
-def book_appointment(appt: AppointmentCreate, background_tasks: BackgroundTasks, current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+@app.post("/appointments/create-order")
+def create_appointment_order(appt: AppointmentCreate, current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """Create appointment and Razorpay order for payment"""
     if current_user.role != "patient":
         raise HTTPException(status_code=403, detail="Only patients can book appointments")
     
+    # Get slot details
     slot = db.query(database.Slot).filter(database.Slot.id == appt.slot_id).first()
     if not slot or slot.is_booked:
         raise HTTPException(status_code=400, detail="Slot unavailable")
     
-    # Check if slot is in the past (compare in UTC)
+    # Check if slot is in the past
     now_utc = datetime.utcnow()
     if slot.start_time <= now_utc:
         raise HTTPException(status_code=400, detail="Cannot book past time slots")
     
+    # Get doctor details for consultation fee
+    doctor = db.query(database.User).filter(database.User.id == appt.doctor_id).first()
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+    
+    consultation_fee = doctor.consultation_fee or 500  # Default fee if not set
+    amount_in_paise = consultation_fee * 100  # Convert to paise
+    
+    # Create appointment record (pending payment)
     new_appt = database.Appointment(
         patient_id=current_user.id,
         doctor_id=appt.doctor_id,
         slot_id=appt.slot_id,
-        appointment_type=appt.appointment_type
+        appointment_type=appt.appointment_type,
+        status="pending_payment",
+        payment_status="pending",
+        payment_amount=amount_in_paise
     )
-    slot.is_booked = True
     db.add(new_appt)
     db.commit()
-
-    # AI Automation Trigger
-    background_tasks.add_task(send_ai_alert, current_user.email, f"Your {appt.appointment_type} appointment is booked for {slot.start_time.strftime('%I:%M %p, %d %b %Y')}!")
+    db.refresh(new_appt)
     
-    return {"message": "Appointment booked successfully"}
+    # Create Razorpay order
+    try:
+        razorpay_order = razorpay_client.order.create({
+            "amount": amount_in_paise,
+            "currency": razorpay_config.CURRENCY,
+            "receipt": f"appt_{new_appt.id}",
+            "notes": {
+                "appointment_id": new_appt.id,
+                "patient_id": current_user.id,
+                "doctor_id": appt.doctor_id,
+                "patient_name": current_user.full_name,
+                "doctor_name": doctor.full_name
+            }
+        })
+        
+        # Update appointment with order ID
+        new_appt.razorpay_order_id = razorpay_order['id']
+        db.commit()
+        
+        return {
+            "success": True,
+            "appointment_id": new_appt.id,
+            "order_id": razorpay_order['id'],
+            "amount": consultation_fee,
+            "currency": razorpay_config.CURRENCY,
+            "key_id": razorpay_config.RAZORPAY_KEY_ID,
+            "doctor_name": doctor.full_name,
+            "doctor_specialty": doctor.specialty,
+            "slot_time": slot.start_time.isoformat(),
+            "appointment_type": appt.appointment_type
+        }
+    except Exception as e:
+        # Rollback appointment if order creation fails
+        db.delete(new_appt)
+        db.commit()
+        raise HTTPException(status_code=500, detail=f"Failed to create payment order: {str(e)}")
+
+@app.post("/appointments/verify-payment")
+def verify_payment(payment: PaymentVerification, current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """Verify Razorpay payment and confirm appointment"""
+    if current_user.role != "patient":
+        raise HTTPException(status_code=403, detail="Only patients can verify payments")
+    
+    # Get appointment
+    appointment = db.query(database.Appointment).filter(
+        database.Appointment.id == payment.appointment_id,
+        database.Appointment.patient_id == current_user.id
+    ).first()
+    
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    
+    # Verify signature
+    generated_signature = hmac.new(
+        razorpay_config.RAZORPAY_KEY_SECRET.encode(),
+        f"{payment.razorpay_order_id}|{payment.razorpay_payment_id}".encode(),
+        hashlib.sha256
+    ).hexdigest()
+    
+    if generated_signature != payment.razorpay_signature:
+        # Payment verification failed
+        appointment.payment_status = "failed"
+        appointment.status = "cancelled"
+        db.commit()
+        raise HTTPException(status_code=400, detail="Payment verification failed")
+    
+    # Payment verified successfully
+    appointment.razorpay_payment_id = payment.razorpay_payment_id
+    appointment.razorpay_signature = payment.razorpay_signature
+    appointment.payment_status = "paid"
+    appointment.payment_date = datetime.utcnow()
+    appointment.status = "scheduled"
+    
+    # Mark slot as booked
+    slot = db.query(database.Slot).filter(database.Slot.id == appointment.slot_id).first()
+    if slot:
+        slot.is_booked = True
+    
+    # Get doctor and slot details
+    doctor = db.query(database.User).filter(database.User.id == appointment.doctor_id).first()
+    
+    # Generate Payment Receipt
+    receipt_number = generate_receipt_number()
+    
+    # Calculate amounts
+    consultation_fee = appointment.payment_amount  # Already in paise
+    tax_amount = 0  # No tax for now, can be calculated as needed
+    discount_amount = 0  # No discount for now
+    total_amount = consultation_fee + tax_amount - discount_amount
+    
+    # Calculate platform fee (20%) and doctor earnings (80%)
+    platform_fee, doctor_earnings = calculate_platform_fee(consultation_fee)
+    
+    # Get current time in IST
+    now_ist = get_ist_now()
+    
+    # Create receipt record
+    receipt = database.PaymentReceipt(
+        receipt_number=receipt_number,
+        appointment_id=appointment.id,
+        patient_id=current_user.id,
+        doctor_id=appointment.doctor_id,
+        payment_amount=consultation_fee,
+        payment_method="Razorpay",
+        razorpay_payment_id=payment.razorpay_payment_id,
+        razorpay_order_id=payment.razorpay_order_id,
+        receipt_date=now_ist.replace(tzinfo=None),  # Store as naive datetime
+        tax_amount=tax_amount,
+        discount_amount=discount_amount,
+        total_amount=total_amount,
+        platform_fee_percentage=20,
+        platform_fee_amount=platform_fee,
+        doctor_earnings=doctor_earnings,
+        appointment_date=slot.start_time if slot else None,
+        appointment_type=appointment.appointment_type,
+        consultation_fee=consultation_fee
+    )
+    
+    db.add(receipt)
+    db.commit()
+    db.refresh(receipt)
+    
+    # Update doctor earnings
+    update_doctor_earnings(db, appointment.doctor_id, consultation_fee)
+    
+    return {
+        "success": True,
+        "message": "Payment verified and appointment confirmed",
+        "appointment_id": appointment.id,
+        "payment_id": payment.razorpay_payment_id,
+        "receipt_id": receipt.id,
+        "receipt_number": receipt_number,
+        "doctor_name": doctor.full_name if doctor else "Unknown",
+        "appointment_type": appointment.appointment_type,
+        "status": appointment.status
+    }
+
+@app.post("/appointments/book")
+def book_appointment(appt: AppointmentCreate, background_tasks: BackgroundTasks, current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """Legacy endpoint - redirects to payment flow"""
+    raise HTTPException(
+        status_code=400, 
+        detail="Please use /appointments/create-order endpoint for booking with payment"
+    )
+
+@app.get("/appointments/{appointment_id}/payment-status")
+def get_payment_status(appointment_id: int, current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """Get payment status for an appointment"""
+    appointment = db.query(database.Appointment).filter(database.Appointment.id == appointment_id).first()
+    
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    
+    # Check if user has access to this appointment
+    if current_user.role == "patient" and appointment.patient_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    elif current_user.role == "doctor" and appointment.doctor_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    elif current_user.role not in ["patient", "doctor", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return {
+        "appointment_id": appointment.id,
+        "payment_status": appointment.payment_status,
+        "payment_amount": appointment.payment_amount / 100 if appointment.payment_amount else 0,  # Convert to rupees
+        "razorpay_order_id": appointment.razorpay_order_id,
+        "razorpay_payment_id": appointment.razorpay_payment_id,
+        "payment_date": appointment.payment_date.isoformat() if appointment.payment_date else None
+    }
+
+# Receipt Endpoints
+@app.get("/receipts/{receipt_id}")
+def get_receipt(receipt_id: int, current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """Get receipt details by receipt ID"""
+    receipt = db.query(database.PaymentReceipt).filter(database.PaymentReceipt.id == receipt_id).first()
+    
+    if not receipt:
+        raise HTTPException(status_code=404, detail="Receipt not found")
+    
+    # Check access
+    if current_user.role == "patient" and receipt.patient_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    elif current_user.role == "doctor" and receipt.doctor_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    elif current_user.role not in ["patient", "doctor", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Get related data
+    patient = db.query(database.User).filter(database.User.id == receipt.patient_id).first()
+    doctor = db.query(database.User).filter(database.User.id == receipt.doctor_id).first()
+    appointment = db.query(database.Appointment).filter(database.Appointment.id == receipt.appointment_id).first()
+    
+    # Convert UTC times to IST for display
+    receipt_date_ist = utc_to_ist(receipt.receipt_date) if receipt.receipt_date else None
+    appointment_date_ist = utc_to_ist(receipt.appointment_date) if receipt.appointment_date else None
+    
+    return {
+        "receipt_id": receipt.id,
+        "receipt_number": receipt.receipt_number,
+        "receipt_date": receipt_date_ist.isoformat() if receipt_date_ist else None,
+        "appointment_id": receipt.appointment_id,
+        "appointment_type": receipt.appointment_type,
+        "appointment_date": appointment_date_ist.isoformat() if appointment_date_ist else None,
+        "patient": {
+            "id": patient.id,
+            "name": patient.full_name,
+            "email": patient.email,
+            "phone": patient.phone
+        } if patient else None,
+        "doctor": {
+            "id": doctor.id,
+            "name": doctor.full_name,
+            "specialty": doctor.specialty,
+            "clinic_name": doctor.clinic_name
+        } if doctor else None,
+        "payment": {
+            "consultation_fee": receipt.consultation_fee / 100,  # Convert to rupees
+            "tax_amount": receipt.tax_amount / 100,
+            "discount_amount": receipt.discount_amount / 100,
+            "total_amount": receipt.total_amount / 100,
+            "payment_method": receipt.payment_method,
+            "razorpay_payment_id": receipt.razorpay_payment_id,
+            "razorpay_order_id": receipt.razorpay_order_id
+        }
+    }
+
+@app.get("/receipts/appointment/{appointment_id}")
+def get_receipt_by_appointment(appointment_id: int, current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """Get receipt by appointment ID"""
+    receipt = db.query(database.PaymentReceipt).filter(
+        database.PaymentReceipt.appointment_id == appointment_id
+    ).first()
+    
+    if not receipt:
+        raise HTTPException(status_code=404, detail="Receipt not found for this appointment")
+    
+    # Check access
+    if current_user.role == "patient" and receipt.patient_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    elif current_user.role == "doctor" and receipt.doctor_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    elif current_user.role not in ["patient", "doctor", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Get related data
+    patient = db.query(database.User).filter(database.User.id == receipt.patient_id).first()
+    doctor = db.query(database.User).filter(database.User.id == receipt.doctor_id).first()
+    
+    # Convert UTC times to IST for display
+    receipt_date_ist = utc_to_ist(receipt.receipt_date) if receipt.receipt_date else None
+    appointment_date_ist = utc_to_ist(receipt.appointment_date) if receipt.appointment_date else None
+    
+    return {
+        "receipt_id": receipt.id,
+        "receipt_number": receipt.receipt_number,
+        "receipt_date": receipt_date_ist.isoformat() if receipt_date_ist else None,
+        "appointment_id": receipt.appointment_id,
+        "appointment_type": receipt.appointment_type,
+        "appointment_date": appointment_date_ist.isoformat() if appointment_date_ist else None,
+        "patient": {
+            "id": patient.id,
+            "name": patient.full_name,
+            "email": patient.email,
+            "phone": patient.phone
+        } if patient else None,
+        "doctor": {
+            "id": doctor.id,
+            "name": doctor.full_name,
+            "specialty": doctor.specialty,
+            "clinic_name": doctor.clinic_name
+        } if doctor else None,
+        "payment": {
+            "consultation_fee": receipt.consultation_fee / 100,
+            "tax_amount": receipt.tax_amount / 100,
+            "discount_amount": receipt.discount_amount / 100,
+            "total_amount": receipt.total_amount / 100,
+            "payment_method": receipt.payment_method,
+            "razorpay_payment_id": receipt.razorpay_payment_id,
+            "razorpay_order_id": receipt.razorpay_order_id
+        }
+    }
+
+@app.get("/patient/receipts")
+def get_patient_receipts(current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """Get all receipts for current patient"""
+    if current_user.role != "patient":
+        raise HTTPException(status_code=403, detail="Only patients can access this endpoint")
+    
+    receipts = db.query(database.PaymentReceipt).filter(
+        database.PaymentReceipt.patient_id == current_user.id
+    ).order_by(database.PaymentReceipt.receipt_date.desc()).all()
+    
+    result = []
+    for receipt in receipts:
+        doctor = db.query(database.User).filter(database.User.id == receipt.doctor_id).first()
+        
+        # Convert UTC to IST for display
+        receipt_date_ist = utc_to_ist(receipt.receipt_date) if receipt.receipt_date else None
+        
+        result.append({
+            "receipt_id": receipt.id,
+            "receipt_number": receipt.receipt_number,
+            "receipt_date": receipt_date_ist.isoformat() if receipt_date_ist else None,
+            "appointment_id": receipt.appointment_id,
+            "doctor_name": doctor.full_name if doctor else "Unknown",
+            "doctor_specialty": doctor.specialty if doctor else "N/A",
+            "total_amount": receipt.total_amount / 100,
+            "payment_method": receipt.payment_method,
+            "appointment_type": receipt.appointment_type
+        })
+    
+    return result
+
+@app.get("/admin/receipts")
+def get_all_receipts(current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """Get all receipts (admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    receipts = db.query(database.PaymentReceipt).order_by(
+        database.PaymentReceipt.receipt_date.desc()
+    ).all()
+    
+    result = []
+    for receipt in receipts:
+        patient = db.query(database.User).filter(database.User.id == receipt.patient_id).first()
+        doctor = db.query(database.User).filter(database.User.id == receipt.doctor_id).first()
+        
+        # Convert UTC to IST for display
+        receipt_date_ist = utc_to_ist(receipt.receipt_date) if receipt.receipt_date else None
+        
+        result.append({
+            "receipt_id": receipt.id,
+            "receipt_number": receipt.receipt_number,
+            "receipt_date": receipt_date_ist.isoformat() if receipt_date_ist else None,
+            "appointment_id": receipt.appointment_id,
+            "patient_name": patient.full_name if patient else "Unknown",
+            "patient_email": patient.email if patient else "N/A",
+            "doctor_name": doctor.full_name if doctor else "Unknown",
+            "doctor_specialty": doctor.specialty if doctor else "N/A",
+            "total_amount": receipt.total_amount / 100,
+            "payment_method": receipt.payment_method,
+            "appointment_type": receipt.appointment_type,
+            "razorpay_payment_id": receipt.razorpay_payment_id
+        })
+    
+    return result
+
+# Doctor Earnings Endpoints
+@app.get("/doctor/earnings")
+def get_doctor_earnings(current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """Get earnings summary for current doctor"""
+    if current_user.role != "doctor":
+        raise HTTPException(status_code=403, detail="Only doctors can access earnings")
+    
+    earnings = db.query(database.DoctorEarnings).filter(
+        database.DoctorEarnings.doctor_id == current_user.id
+    ).first()
+    
+    if not earnings:
+        # Create initial earnings record
+        earnings = database.DoctorEarnings(
+            doctor_id=current_user.id,
+            total_consultations=0,
+            total_revenue=0,
+            platform_fees_paid=0,
+            total_earnings=0,
+            withdrawn_amount=0,
+            pending_amount=0
+        )
+        db.add(earnings)
+        db.commit()
+        db.refresh(earnings)
+    
+    return {
+        "doctor_id": earnings.doctor_id,
+        "total_consultations": earnings.total_consultations,
+        "total_revenue": earnings.total_revenue / 100,  # Convert to rupees
+        "platform_fees_paid": earnings.platform_fees_paid / 100,
+        "platform_fee_percentage": 20,
+        "total_earnings": earnings.total_earnings / 100,
+        "withdrawn_amount": earnings.withdrawn_amount / 100,
+        "pending_amount": earnings.pending_amount / 100,
+        "last_updated": earnings.last_updated.isoformat() if earnings.last_updated else None
+    }
+
+@app.get("/doctor/earnings/breakdown")
+def get_earnings_breakdown(current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """Get detailed earnings breakdown by appointment"""
+    if current_user.role != "doctor":
+        raise HTTPException(status_code=403, detail="Only doctors can access earnings")
+    
+    receipts = db.query(database.PaymentReceipt).filter(
+        database.PaymentReceipt.doctor_id == current_user.id
+    ).order_by(database.PaymentReceipt.receipt_date.desc()).all()
+    
+    result = []
+    for receipt in receipts:
+        patient = db.query(database.User).filter(database.User.id == receipt.patient_id).first()
+        receipt_date_ist = utc_to_ist(receipt.receipt_date) if receipt.receipt_date else None
+        
+        result.append({
+            "receipt_id": receipt.id,
+            "receipt_number": receipt.receipt_number,
+            "receipt_date": receipt_date_ist.isoformat() if receipt_date_ist else None,
+            "patient_name": patient.full_name if patient else "Unknown",
+            "consultation_fee": receipt.consultation_fee / 100,
+            "platform_fee": receipt.platform_fee_amount / 100,
+            "your_earnings": receipt.doctor_earnings / 100,
+            "appointment_type": receipt.appointment_type
+        })
+    
+    return result
+
+# Withdrawal Endpoints
+@app.post("/doctor/withdraw")
+def request_withdrawal(withdrawal: WithdrawalRequest, current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """Request withdrawal of earnings"""
+    if current_user.role != "doctor":
+        raise HTTPException(status_code=403, detail="Only doctors can request withdrawals")
+    
+    # Get doctor earnings
+    earnings = db.query(database.DoctorEarnings).filter(
+        database.DoctorEarnings.doctor_id == current_user.id
+    ).first()
+    
+    if not earnings:
+        raise HTTPException(status_code=404, detail="No earnings found")
+    
+    # Convert amount to paise
+    amount_in_paise = withdrawal.amount * 100
+    
+    # Check if sufficient balance
+    if amount_in_paise > earnings.pending_amount:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Insufficient balance. Available: ₹{earnings.pending_amount / 100}"
+        )
+    
+    # Minimum withdrawal amount
+    if withdrawal.amount < 100:
+        raise HTTPException(status_code=400, detail="Minimum withdrawal amount is ₹100")
+    
+    # Create withdrawal request
+    withdrawal_number = generate_withdrawal_number()
+    new_withdrawal = database.Withdrawal(
+        doctor_id=current_user.id,
+        withdrawal_number=withdrawal_number,
+        amount=amount_in_paise,
+        status="pending",
+        account_holder_name=withdrawal.account_holder_name,
+        account_number=withdrawal.account_number,
+        ifsc_code=withdrawal.ifsc_code,
+        bank_name=withdrawal.bank_name,
+        requested_date=datetime.utcnow()
+    )
+    
+    db.add(new_withdrawal)
+    
+    # Update earnings - move from pending to withdrawn
+    earnings.pending_amount -= amount_in_paise
+    earnings.withdrawn_amount += amount_in_paise
+    earnings.last_updated = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(new_withdrawal)
+    
+    return {
+        "success": True,
+        "message": "Withdrawal request submitted successfully",
+        "withdrawal_id": new_withdrawal.id,
+        "withdrawal_number": withdrawal_number,
+        "amount": withdrawal.amount,
+        "status": "pending",
+        "note": "Your withdrawal will be processed within 3-5 business days"
+    }
+
+@app.get("/doctor/withdrawals")
+def get_withdrawal_history(current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """Get withdrawal history for current doctor"""
+    if current_user.role != "doctor":
+        raise HTTPException(status_code=403, detail="Only doctors can access withdrawal history")
+    
+    withdrawals = db.query(database.Withdrawal).filter(
+        database.Withdrawal.doctor_id == current_user.id
+    ).order_by(database.Withdrawal.requested_date.desc()).all()
+    
+    result = []
+    for w in withdrawals:
+        requested_date_ist = utc_to_ist(w.requested_date) if w.requested_date else None
+        processed_date_ist = utc_to_ist(w.processed_date) if w.processed_date else None
+        
+        result.append({
+            "withdrawal_id": w.id,
+            "withdrawal_number": w.withdrawal_number,
+            "amount": w.amount / 100,
+            "status": w.status,
+            "account_holder_name": w.account_holder_name,
+            "account_number": "XXXX" + w.account_number[-4:] if w.account_number else "N/A",  # Masked
+            "bank_name": w.bank_name,
+            "requested_date": requested_date_ist.isoformat() if requested_date_ist else None,
+            "processed_date": processed_date_ist.isoformat() if processed_date_ist else None,
+            "transaction_id": w.transaction_id,
+            "notes": w.notes
+        })
+    
+    return result
+
+# Admin Withdrawal Management
+@app.get("/admin/withdrawals")
+def get_all_withdrawals(current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """Get all withdrawal requests (admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    withdrawals = db.query(database.Withdrawal).order_by(
+        database.Withdrawal.requested_date.desc()
+    ).all()
+    
+    result = []
+    for w in withdrawals:
+        doctor = db.query(database.User).filter(database.User.id == w.doctor_id).first()
+        requested_date_ist = utc_to_ist(w.requested_date) if w.requested_date else None
+        processed_date_ist = utc_to_ist(w.processed_date) if w.processed_date else None
+        
+        result.append({
+            "withdrawal_id": w.id,
+            "withdrawal_number": w.withdrawal_number,
+            "doctor_name": doctor.full_name if doctor else "Unknown",
+            "doctor_email": doctor.email if doctor else "N/A",
+            "amount": w.amount / 100,
+            "status": w.status,
+            "account_holder_name": w.account_holder_name,
+            "account_number": w.account_number,
+            "ifsc_code": w.ifsc_code,
+            "bank_name": w.bank_name,
+            "requested_date": requested_date_ist.isoformat() if requested_date_ist else None,
+            "processed_date": processed_date_ist.isoformat() if processed_date_ist else None,
+            "transaction_id": w.transaction_id,
+            "notes": w.notes
+        })
+    
+    return result
+
+class WithdrawalUpdate(BaseModel):
+    status: str  # processing, completed, failed
+    transaction_id: Optional[str] = None
+    notes: Optional[str] = None
+
+@app.put("/admin/withdrawals/{withdrawal_id}")
+def update_withdrawal_status(withdrawal_id: int, update: WithdrawalUpdate, current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """Update withdrawal status (admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    withdrawal = db.query(database.Withdrawal).filter(database.Withdrawal.id == withdrawal_id).first()
+    
+    if not withdrawal:
+        raise HTTPException(status_code=404, detail="Withdrawal not found")
+    
+    # Update status
+    withdrawal.status = update.status
+    withdrawal.processed_date = datetime.utcnow()
+    
+    if update.transaction_id:
+        withdrawal.transaction_id = update.transaction_id
+    
+    if update.notes:
+        withdrawal.notes = update.notes
+    
+    # If withdrawal failed, refund to doctor's pending amount
+    if update.status == "failed":
+        earnings = db.query(database.DoctorEarnings).filter(
+            database.DoctorEarnings.doctor_id == withdrawal.doctor_id
+        ).first()
+        
+        if earnings:
+            earnings.pending_amount += withdrawal.amount
+            earnings.withdrawn_amount -= withdrawal.amount
+            earnings.last_updated = datetime.utcnow()
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Withdrawal {update.status}",
+        "withdrawal_id": withdrawal.id,
+        "withdrawal_number": withdrawal.withdrawal_number,
+        "status": withdrawal.status
+    }
 
 # Profile Endpoints
 @app.get("/profile/me")
@@ -555,11 +1228,15 @@ def get_patient_appointments(current_user: database.User = Depends(auth.get_curr
             "doctor_id": appt.doctor_id,
             "doctor_name": doctor.full_name if doctor else "Unknown",
             "doctor_specialty": doctor.specialty if doctor else "General Physician",
+            "consultation_fee": doctor.consultation_fee if doctor else 0,
             "slot_id": appt.slot_id,
             "start_time": slot.start_time.isoformat() if slot else None,
             "end_time": slot.end_time.isoformat() if slot else None,
             "appointment_type": appt.appointment_type,
             "status": appt.status,
+            "payment_status": appt.payment_status,
+            "payment_amount": appt.payment_amount / 100 if appt.payment_amount else 0,
+            "razorpay_payment_id": appt.razorpay_payment_id,
             "created_at": appt.created_at.isoformat()
         })
     return result
@@ -761,6 +1438,14 @@ def read_terms():
 @app.get("/contact")
 def read_contact():
     return FileResponse("static/contact.html")
+
+@app.get("/payment")
+def read_payment():
+    return FileResponse("static/payment.html")
+
+@app.get("/receipt")
+def read_receipt():
+    return FileResponse("static/receipt.html")
 
 @app.get("/calendar")
 def read_calendar():

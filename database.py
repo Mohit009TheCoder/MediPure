@@ -83,10 +83,102 @@ class Appointment(Base):
     appointment_type = Column(String) # "video" or "physical"
     status = Column(String, default="scheduled") # scheduled, completed, cancelled
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    # Payment fields
+    payment_status = Column(String, default="pending") # pending, paid, failed, refunded
+    payment_amount = Column(Integer, nullable=True) # Amount in paise (INR)
+    razorpay_order_id = Column(String, nullable=True)
+    razorpay_payment_id = Column(String, nullable=True)
+    razorpay_signature = Column(String, nullable=True)
+    payment_date = Column(DateTime, nullable=True)
 
     patient = relationship("User", foreign_keys=[patient_id])
     doctor = relationship("User", foreign_keys=[doctor_id])
     slot = relationship("Slot")
+
+class PaymentReceipt(Base):
+    __tablename__ = "payment_receipts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    receipt_number = Column(String, unique=True, index=True)  # Unique receipt number
+    appointment_id = Column(Integer, ForeignKey("appointments.id"))
+    patient_id = Column(Integer, ForeignKey("users.id"))
+    doctor_id = Column(Integer, ForeignKey("users.id"))
+    
+    # Payment details
+    payment_amount = Column(Integer)  # Amount in paise
+    payment_method = Column(String, default="Razorpay")
+    razorpay_payment_id = Column(String)
+    razorpay_order_id = Column(String)
+    
+    # Receipt details
+    receipt_date = Column(DateTime, default=datetime.datetime.utcnow)
+    tax_amount = Column(Integer, default=0)  # Tax in paise
+    discount_amount = Column(Integer, default=0)  # Discount in paise
+    total_amount = Column(Integer)  # Total in paise
+    
+    # Platform fee and doctor earnings
+    platform_fee_percentage = Column(Integer, default=20)  # 20% platform fee
+    platform_fee_amount = Column(Integer)  # Platform fee in paise
+    doctor_earnings = Column(Integer)  # Doctor's share in paise
+    
+    # Additional info
+    appointment_date = Column(DateTime)
+    appointment_type = Column(String)
+    consultation_fee = Column(Integer)
+    
+    # Relationships
+    appointment = relationship("Appointment")
+    patient = relationship("User", foreign_keys=[patient_id])
+    doctor = relationship("User", foreign_keys=[doctor_id])
+
+class DoctorEarnings(Base):
+    __tablename__ = "doctor_earnings"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    doctor_id = Column(Integer, ForeignKey("users.id"))
+    
+    # Earnings summary
+    total_consultations = Column(Integer, default=0)
+    total_revenue = Column(Integer, default=0)  # Total amount received from patients (in paise)
+    platform_fees_paid = Column(Integer, default=0)  # Total platform fees (in paise)
+    total_earnings = Column(Integer, default=0)  # Net earnings after platform fee (in paise)
+    
+    # Withdrawal tracking
+    withdrawn_amount = Column(Integer, default=0)  # Amount already withdrawn (in paise)
+    pending_amount = Column(Integer, default=0)  # Amount available for withdrawal (in paise)
+    
+    # Timestamps
+    last_updated = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    # Relationship
+    doctor = relationship("User", foreign_keys=[doctor_id])
+
+class Withdrawal(Base):
+    __tablename__ = "withdrawals"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    doctor_id = Column(Integer, ForeignKey("users.id"))
+    
+    # Withdrawal details
+    withdrawal_number = Column(String, unique=True, index=True)  # Unique withdrawal number
+    amount = Column(Integer)  # Amount in paise
+    status = Column(String, default="pending")  # pending, processing, completed, failed
+    
+    # Bank details
+    account_holder_name = Column(String)
+    account_number = Column(String)
+    ifsc_code = Column(String)
+    bank_name = Column(String)
+    
+    # Processing details
+    requested_date = Column(DateTime, default=datetime.datetime.utcnow)
+    processed_date = Column(DateTime, nullable=True)
+    transaction_id = Column(String, nullable=True)
+    notes = Column(String, nullable=True)
+    
+    # Relationship
+    doctor = relationship("User", foreign_keys=[doctor_id])
 
 Base.metadata.create_all(bind=engine)
 

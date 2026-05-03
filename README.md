@@ -1,279 +1,253 @@
-# Medipure - AI-Powered Doctor Appointment System
+# Medipure - Doctor Appointment System
 
-Medipure is a modern, premium healthcare platform that connects patients with doctors for both video consultations and physical appointments.
+A comprehensive healthcare platform connecting patients with doctors through video and physical consultations, with integrated payment processing and earnings management.
 
-## Features
-- **Three User Roles**: Admin, Doctor, and Patient
-- **Search & Filter**: Find doctors by area (nearby) and specialty/disease
-- **Advanced Slot Management**: 
-  - Visual clock picker with hour/minute selection modes
-  - Mini calendar with date selection and slot indicators
-  - Multi-slot generation across date ranges
-  - Quick templates for common schedules
-  - Duration presets (15/30/45/60 minutes)
-  - Auto-increment for rapid slot creation
-- **Booking System**: Patients can book slots for video calls or physical visits
-- **AI Automation**: 
-  - **Alert System**: Background tasks send automated booking reminders
-  - **AI Health Diagnosis**: Symptom analysis tool that recommends the right specialist
-- **Professional Design**: Premium medical-themed UI with smooth animations
-- **Complete Profile Management**: Users can view and update their profiles
-- **Appointment Tracking**: View all appointments with detailed information
-- **Services Page**: Comprehensive overview of all healthcare services offered
-
-## Tech Stack
-- **Backend**: FastAPI (Python)
-- **Database**: SQLite (SQLAlchemy ORM)
-- **Frontend**: Vanilla HTML5, CSS3 (Premium Design), JavaScript
-- **Auth**: Simple token-based authentication with secure password hashing
-
-## Getting Started
-
-### Prerequisites
-- Python 3.8 or higher
-- pip (Python package manager)
-
-### Installation
-
-1. **Clone or download the repository**
-
-2. **Create and activate a virtual environment** (recommended):
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On macOS/Linux
-   # OR
-   venv\Scripts\activate  # On Windows
-   ```
-
-3. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Run the application**:
-   ```bash
-   python main.py
-   ```
-   
-   Or if using the virtual environment:
-   ```bash
-   source venv/bin/activate && python main.py
-   ```
-
-5. **Open your browser** at `http://localhost:8000`
-
-## Usage
-
-### Default Admin Credentials
-**Email:** `admin@medipure.com`  
-**Password:** `admin123`
-
-### For Admins
-1. **Login** with admin credentials
-2. **View System Overview** - total doctors, patients, appointments, and revenue
-3. **View All Doctors** - complete list with details, ratings, and statistics
-4. **View All Patients** - patient information, medical history, and appointments
-5. **View All Appointments** - comprehensive appointment tracking with patient and doctor details
-6. **System Analytics** - detailed statistics and system information
-7. **Recent Activity** - monitor latest appointments and bookings
+## 🌟 Features
 
 ### For Patients
-1. **Register** as a patient with your personal and medical information
-2. **Login** with your credentials
-3. **Search for doctors** by location and specialty
-4. **Use AI Health Check** to get specialist recommendations based on symptoms
-5. **Book appointments** for video consultations or physical visits
-6. **View your appointments** on the dashboard
-7. **Manage your profile** with medical history and emergency contacts
+- 🔍 Search doctors by specialty and location
+- 📅 Book video or physical consultations
+- 💳 Secure payment via Razorpay
+- 🧾 Digital payment receipts
+- 🤖 AI-powered symptom analysis
+- ⭐ View top-rated doctors
+- 📱 Responsive mobile-friendly interface
 
 ### For Doctors
-1. **Register** as a doctor with your license, specialty, and clinic information
-2. **Login** with your credentials
-3. **Manage availability slots** with the enhanced time range interface:
-   - **Time Range Selection** - Set start time (e.g., 09:00 AM) and end time (e.g., 05:00 PM)
-   - **Slot Duration** - Choose 15, 30, 45, or 60-minute appointment durations
-   - **Auto-Generate Slots** - Automatically create all slots within your time range with one click
-   - **Visual Preview** - See how many slots will be created before generating
-   - **Quick Templates** - Apply preset schedules (Morning, Afternoon, Evening, Full Day)
-   - **Visual Clock Picker** - Select times using an intuitive clock interface with hour and minute modes
-   - **Mini Calendar** - View and select dates with visual indicators for slots
-   - **Multi-Slot Generation** - Create multiple slots across date ranges with day-of-week selection
-   - **Slot Management** - View, edit, and delete available slots
-4. **View appointments** - see all scheduled consultations
-5. **Track patients** - view patient information and appointment history
-6. **Update your profile** with bio, consultation fees, and specialization
+- 🕐 Manage appointment slots
+- 📊 View earnings dashboard
+- 💰 Track consultation revenue
+- 💸 Request withdrawals to bank account
+- 📜 View withdrawal history
+- 👥 Manage patient appointments
+- 📈 Real-time earnings updates
 
 ### For Admins
-1. **Login** with admin credentials
-2. **View system overview** - total doctors, patients, and appointments
-3. **Monitor platform activity** and analytics
+- 👨‍⚕️ Manage doctors and patients
+- 📊 System analytics and statistics
+- 💼 Process withdrawal requests
+- 📋 View all appointments and receipts
+- 🔍 Monitor platform activity
 
-## API Endpoints
+## 💰 Business Model
 
-### Authentication
-- `POST /register` - Register a new user (patient/doctor/admin)
-- `POST /token` - Login and get JWT token
+- **Platform Fee:** 20% of consultation fee
+- **Doctor Earnings:** 80% of consultation fee
+- **Automatic Calculation:** Real-time earnings updates
+- **Withdrawal System:** 3-5 business days processing
+- **Minimum Withdrawal:** ₹100
 
-### Patient Endpoints
-- `GET /doctors/search` - Search doctors by area and specialty
-- `GET /doctors/{doctor_id}/slots` - Get available slots for a doctor
-- `POST /appointments/book` - Book an appointment
-- `GET /patient/appointments` - Get all patient appointments
+## 🚀 Tech Stack
 
-### Doctor Endpoints
-- `POST /doctor/slots` - Add availability slot
-- `GET /doctor/slots` - Get all doctor's slots
-- `DELETE /doctor/slots/{slot_id}` - Delete an available slot
-- `GET /doctor/appointments` - Get all doctor appointments
+- **Backend:** FastAPI (Python)
+- **Database:** SQLite with SQLAlchemy
+- **Frontend:** HTML5, CSS3, JavaScript
+- **Payment:** Razorpay Integration
+- **Authentication:** JWT (JSON Web Tokens)
+- **Timezone:** IST (Indian Standard Time)
 
-### Profile Endpoints
-- `GET /profile/me` - Get current user profile
-- `PUT /profile/update` - Update user profile
+## 📦 Setup
 
-### Admin Endpoints
-- `GET /admin/stats` - Get system statistics (doctors, patients, appointments, revenue)
-- `GET /admin/doctors` - Get all doctors with complete details
-- `GET /admin/patients` - Get all patients with medical information
-- `GET /admin/appointments` - Get all appointments with full details
-- `GET /admin/recent-activity` - Get recent system activity
-
-## Database Schema
-
-### Users Table
-- Common fields: email, password, full_name, role, phone, address, city, zip, area
-- Patient-specific: dob, gender, blood_group, disease_info, emergency contacts
-- Doctor-specific: license_number, specialty, qualification, experience, clinic_name, consultation_fee, bio
-
-### Slots Table
-- doctor_id, start_time, end_time, is_booked
-
-### Appointments Table
-- patient_id, doctor_id, slot_id, appointment_type (video/physical), status, created_at
-
-## Features in Detail
-
-### Advanced Calendar & Slot Management
-The calendar system provides a real-world, mobile-app-like experience:
-- **Visual Clock Picker**: 
-  - Animated clock hand pointing to selected time
-  - Separate hour and minute selection modes
-  - AM/PM toggle for 12-hour format
-  - Smooth transitions and visual feedback
-- **Mini Calendar**:
-  - Current month view with navigation
-  - Visual indicators for dates with slots
-  - Today and selected date highlighting
-  - Quick date selection
-- **Multi-Slot Generation**:
-  - Create slots across multiple dates
-  - Select specific days of the week
-  - Set time ranges and slot duration
-  - Preview total slots before generation
-  - Batch creation with progress tracking
-- **Quick Templates**:
-  - Morning Shift (9 AM - 1 PM)
-  - Afternoon (2 PM - 6 PM)
-  - Evening (6 PM - 9 PM)
-  - Full Day (9 AM - 9 PM)
-- **Smart Features**:
-  - Auto-increment time after adding slots
-  - Duration presets (15/30/45/60 minutes)
-  - Delete available slots
-  - View slots by date
-
-### AI Health Assistant
-The AI Health Assistant analyzes patient symptoms and recommends appropriate specialists:
-- Analyzes symptom descriptions
-- Suggests relevant medical specialties
-- Helps patients find the right doctor quickly
-
-### Slot Management
-Doctors can:
-- Add multiple time slots for availability
-- View all slots (booked and available)
-- Slots are automatically marked as booked when appointments are made
-
-### Appointment System
-- Supports both video and physical consultations
-- Real-time availability checking
-- Appointment status tracking (scheduled, completed, cancelled)
-- Detailed appointment information with doctor/patient names and times
-
-### Profile Management
-- Role-specific profile fields
-- Update personal information
-- View appointment statistics
-- Emergency contact information for patients
-- Professional credentials for doctors
-
-## Security Features
-- Password hashing using SHA256
-- Simple token-based authentication
-- Protected API endpoints
-- Role-based access control
-
-## Project Structure
-```
-Medipure/
-├── main.py              # FastAPI application and API endpoints
-├── auth.py              # Authentication and token handling
-├── database.py          # Database models and configuration
-├── config.py            # Application configuration
-├── requirements.txt     # Python dependencies
-├── medipure.db         # SQLite database (auto-created)
-├── static/             # Frontend files
-│   ├── index.html      # Landing page
-│   ├── login.html      # Login/Registration page
-│   ├── dashboard.html  # User dashboard (role-specific)
-│   ├── profile.html    # Profile management
-│   ├── calendar.html   # Advanced slot management calendar
-│   ├── services.html   # Services overview page
-│   ├── top-doctors.html # Top-rated doctors listing
-│   ├── index.css       # Main styles
-│   ├── footer-styles.css
-│   ├── logo.svg
-│   ├── favicon.svg
-│   ├── privacy.html    # Privacy policy
-│   ├── terms.html      # Terms of service
-│   └── contact.html    # Contact page
-└── README.md           # This file
-```
-
-## Troubleshooting
-
-### Port 8000 already in use
-If you get an error that port 8000 is already in use:
+### 1. Install Dependencies
 ```bash
-# On macOS/Linux
-lsof -ti:8000 | xargs kill -9
-
-# On Windows
-netstat -ano | findstr :8000
-taskkill /PID <PID> /F
-```
-
-### Module not found errors
-Make sure you've activated the virtual environment and installed all dependencies:
-```bash
-source venv/bin/activate  # On macOS/Linux
 pip install -r requirements.txt
 ```
 
-### Database errors
-If you encounter database errors, you can reset the database by deleting `medipure.db` and restarting the application. It will be recreated automatically.
+### 2. Run the Application
+```bash
+python main.py
+```
+Or use the start script:
+```bash
+bash start.sh
+```
 
-## Future Enhancements
-- Video call integration
-- Payment gateway integration
-- Email/SMS notifications
-- Prescription management
-- Medical records storage
-- Doctor ratings and reviews
-- Advanced analytics dashboard
-- Multi-language support
+### 3. Access the Application
+- **URL:** http://localhost:8000
+- **API Docs:** http://localhost:8000/docs
 
-## License
-© 2026 Medipure. All rights reserved.
+## 👥 Test Accounts
 
-## Support
-For support, please visit the contact page or email support@medipure.com
+### Doctor Account
+- **Email:** doctor@test.com
+- **Password:** test123
+- **Consultation Fee:** ₹500
+
+### Patient Account
+- **Email:** patient@test.com
+- **Password:** test123
+
+### Admin Account
+- **Email:** admin@medipure.com
+- **Password:** admin123
+
+## 📚 Documentation
+
+### Complete Guides
+- **[EARNINGS_SYSTEM.md](EARNINGS_SYSTEM.md)** - Complete earnings & withdrawal system documentation
+- **[TESTING_EARNINGS.md](TESTING_EARNINGS.md)** - Step-by-step testing guide
+- **[UI_SCREENSHOTS_GUIDE.md](UI_SCREENSHOTS_GUIDE.md)** - Visual UI reference
+- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - High-level overview
+
+### Quick Links
+- **[System Overview](SYSTEM_OVERVIEW.txt)** - Architecture overview
+- **[Navigation Fix](NAVIGATION_FIX.md)** - Smart home redirect feature
+
+## 🧪 Testing
+
+### Quick Test Flow
+1. **Login as Patient** → Book appointment → Complete payment
+2. **Login as Doctor** → View earnings → Request withdrawal
+3. **Check withdrawal history** → Track status
+
+See [TESTING_EARNINGS.md](TESTING_EARNINGS.md) for detailed testing instructions.
+
+## 🎨 Key Features Implemented
+
+### ✅ Payment System
+- Razorpay integration
+- Automatic receipt generation
+- IST timezone support
+- Payment verification
+
+### ✅ Earnings Management
+- Real-time earnings tracking
+- 20/80 platform fee split
+- Detailed breakdown by consultation
+- Visual earnings dashboard
+
+### ✅ Withdrawal System
+- Bank account integration
+- Minimum withdrawal validation
+- Status tracking (pending/processing/completed/failed)
+- Automatic balance updates
+- Admin approval workflow
+
+### ✅ Security
+- JWT authentication
+- Role-based access control
+- Input validation
+- Account number masking
+- Secure payment processing
+
+## 📱 Responsive Design
+
+- ✅ Desktop (1024px+)
+- ✅ Tablet (768px - 1024px)
+- ✅ Mobile (< 768px)
+- ✅ Touch-friendly interface
+
+## 🔐 Security Features
+
+- JWT token authentication
+- Password hashing (bcrypt)
+- Role-based authorization
+- Payment signature verification
+- SQL injection prevention
+- XSS protection
+
+## 🌐 API Endpoints
+
+### Authentication
+- `POST /register` - User registration
+- `POST /token` - Login
+
+### Doctor Endpoints
+- `GET /doctor/earnings` - Earnings summary
+- `GET /doctor/earnings/breakdown` - Detailed breakdown
+- `POST /doctor/withdraw` - Request withdrawal
+- `GET /doctor/withdrawals` - Withdrawal history
+- `POST /doctor/slots` - Add appointment slot
+- `GET /doctor/slots` - View slots
+- `GET /doctor/appointments` - View appointments
+
+### Patient Endpoints
+- `GET /doctors/search` - Search doctors
+- `GET /doctors/{id}/slots` - View doctor slots
+- `POST /appointments/create-order` - Create appointment
+- `POST /appointments/verify-payment` - Verify payment
+- `GET /patient/receipts` - View receipts
+
+### Admin Endpoints
+- `GET /admin/stats` - System statistics
+- `GET /admin/withdrawals` - All withdrawals
+- `PUT /admin/withdrawals/{id}` - Update withdrawal
+- `GET /admin/doctors` - All doctors
+- `GET /admin/patients` - All patients
+
+## 🛠️ Development
+
+### Project Structure
+```
+medipure/
+├── main.py                 # FastAPI application
+├── database.py            # Database models
+├── auth.py                # Authentication
+├── config.py              # Configuration
+├── razorpay_config.py     # Payment config
+├── static/                # Frontend files
+│   ├── dashboard.html     # Main dashboard
+│   ├── payment.html       # Payment page
+│   ├── receipt.html       # Receipt page
+│   └── ...
+├── requirements.txt       # Python dependencies
+└── medipure.db           # SQLite database
+```
+
+### Database Schema
+- **Users** - Admin, doctors, patients
+- **Slots** - Doctor availability
+- **Appointments** - Bookings
+- **PaymentReceipts** - Payment records
+- **DoctorEarnings** - Earnings tracking
+- **Withdrawals** - Withdrawal requests
+
+## 🚀 Production Deployment
+
+### Before Going Live
+1. Update Razorpay keys (test → live)
+2. Configure production database
+3. Set up SSL/HTTPS
+4. Configure email notifications
+5. Set up monitoring and logging
+6. Backup strategy
+
+## 📊 System Status
+
+- ✅ **Backend:** Complete and tested
+- ✅ **Frontend:** Complete and responsive
+- ✅ **Payment:** Razorpay integrated
+- ✅ **Earnings:** Real-time tracking
+- ✅ **Withdrawals:** Full workflow
+- ✅ **Documentation:** Comprehensive
+
+## 🎯 Future Enhancements
+
+- [ ] Email notifications
+- [ ] SMS alerts
+- [ ] Video call integration
+- [ ] Prescription management
+- [ ] Medical records
+- [ ] Analytics dashboard
+- [ ] Mobile app
+- [ ] Multi-language support
+
+## 📞 Support
+
+For issues or questions:
+1. Check the documentation files
+2. Review the testing guide
+3. Check API documentation at `/docs`
+4. Review code comments
+
+## 📄 License
+
+This project is for educational and demonstration purposes.
+
+---
+
+**Status:** ✅ Production-Ready
+**Version:** 2.0
+**Last Updated:** May 3, 2026
+
+Built with ❤️ using FastAPI, Razorpay, and modern web technologies.
