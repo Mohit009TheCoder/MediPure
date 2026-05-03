@@ -1012,7 +1012,25 @@
                 appointments.slice(0, 5).forEach(app => {
                     const card = document.createElement('div');
                     card.className = 'appointment-card';
-                    const appointmentDate = app.start_time ? new Date(app.start_time).toLocaleString() : new Date(app.created_at).toLocaleDateString();
+                    
+                    // Parse the datetime string WITHOUT timezone conversion
+                    let appointmentDate = 'Not scheduled';
+                    if (app.start_time) {
+                        const [datePart, timePart] = app.start_time.split('T');
+                        const [year, month, day] = datePart.split('-').map(Number);
+                        const [hour, minute] = timePart.split(':').map(Number);
+                        const start = new Date(year, month - 1, day, hour, minute);
+                        
+                        appointmentDate = start.toLocaleDateString('en-US', { 
+                            weekday: 'short',
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    }
+                    
                     card.innerHTML = `
                         <div class="appointment-header">
                             <div>
@@ -1071,7 +1089,25 @@
                 appointments.slice(0, 5).forEach(app => {
                     const card = document.createElement('div');
                     card.className = 'appointment-card';
-                    const appointmentDate = app.start_time ? new Date(app.start_time).toLocaleString() : new Date(app.created_at).toLocaleDateString();
+                    
+                    // Parse the datetime string WITHOUT timezone conversion
+                    let appointmentDate = 'Not scheduled';
+                    if (app.start_time) {
+                        const [datePart, timePart] = app.start_time.split('T');
+                        const [year, month, day] = datePart.split('-').map(Number);
+                        const [hour, minute] = timePart.split(':').map(Number);
+                        const start = new Date(year, month - 1, day, hour, minute);
+                        
+                        appointmentDate = start.toLocaleDateString('en-US', { 
+                            weekday: 'short',
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    }
+                    
                     card.innerHTML = `
                         <div class="appointment-header">
                             <div>
@@ -1182,27 +1218,91 @@
                 return;
             }
             
-            contentBody.innerHTML = '';
+            // Group slots by date
+            const slotsByDate = {};
             slots.forEach(slot => {
-                const card = document.createElement('div');
-                card.className = 'appointment-card';
-                const time = new Date(slot.start_time).toLocaleString();
-                card.innerHTML = `
-                    <div class="appointment-header">
-                        <div>
-                            <div class="appointment-doctor">${time}</div>
+                // Parse the datetime string WITHOUT timezone conversion
+                const [datePart, timePart] = slot.start_time.split('T');
+                const [year, month, day] = datePart.split('-').map(Number);
+                const [hour, minute] = timePart.split(':').map(Number);
+                
+                // Create date in LOCAL timezone (not UTC)
+                const slotDate = new Date(year, month - 1, day);
+                const dateKey = slotDate.toDateString();
+                
+                if (!slotsByDate[dateKey]) {
+                    slotsByDate[dateKey] = [];
+                }
+                slotsByDate[dateKey].push({
+                    ...slot,
+                    localStart: new Date(year, month - 1, day, hour, minute)
+                });
+            });
+            
+            // Sort dates
+            const sortedDates = Object.keys(slotsByDate).sort((a, b) => new Date(a) - new Date(b));
+            
+            contentBody.innerHTML = '';
+            sortedDates.forEach(dateKey => {
+                const dateSlots = slotsByDate[dateKey];
+                const dateObj = new Date(dateKey);
+                const dateStr = dateObj.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+                
+                // Create date header
+                const dateHeader = document.createElement('div');
+                dateHeader.style.cssText = 'background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%); color: white; padding: 15px 20px; border-radius: 12px; margin-bottom: 15px; margin-top: 20px; font-weight: 600; font-size: 1.1rem;';
+                dateHeader.innerHTML = `<i class="fas fa-calendar-day"></i> ${dateStr}`;
+                contentBody.appendChild(dateHeader);
+                
+                // Sort slots by time
+                dateSlots.sort((a, b) => a.localStart - b.localStart);
+                
+                // Create slot cards
+                dateSlots.forEach(slot => {
+                    const card = document.createElement('div');
+                    card.className = 'appointment-card';
+                    
+                    const [endDatePart, endTimePart] = slot.end_time.split('T');
+                    const [endYear, endMonth, endDay] = endDatePart.split('-').map(Number);
+                    const [endHour, endMinute] = endTimePart.split(':').map(Number);
+                    const localEnd = new Date(endYear, endMonth - 1, endDay, endHour, endMinute);
+                    
+                    const startTime = slot.localStart.toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    });
+                    const endTime = localEnd.toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    });
+                    
+                    card.innerHTML = `
+                        <div class="appointment-header">
+                            <div>
+                                <div class="appointment-doctor">
+                                    <i class="fas fa-clock"></i> ${startTime} - ${endTime}
+                                </div>
+                                <div class="appointment-specialty">
+                                    Duration: ${Math.round((localEnd - slot.localStart) / 60000)} minutes
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn btn-primary" onclick="bookAppointment(${docId}, ${slot.id}, 'video')">
+                                    <i class="fas fa-video"></i> Video
+                                </button>
+                                <button class="btn btn-outline" onclick="bookAppointment(${docId}, ${slot.id}, 'physical')">
+                                    <i class="fas fa-hospital"></i> Physical
+                                </button>
+                            </div>
                         </div>
-                        <div style="display: flex; gap: 10px;">
-                            <button class="btn btn-primary" onclick="bookAppointment(${docId}, ${slot.id}, 'video')">
-                                <i class="fas fa-video"></i> Video
-                            </button>
-                            <button class="btn btn-outline" onclick="bookAppointment(${docId}, ${slot.id}, 'physical')">
-                                <i class="fas fa-hospital"></i> Physical
-                            </button>
-                        </div>
-                    </div>
-                `;
-                contentBody.appendChild(card);
+                    `;
+                    contentBody.appendChild(card);
+                });
             });
         }
 

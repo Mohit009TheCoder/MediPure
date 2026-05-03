@@ -272,6 +272,17 @@
             border-color: #ff9800;
         }
 
+        .time-slot-card.past {
+            background: #f5f5f5;
+            border-color: #bdbdbd;
+            opacity: 0.7;
+        }
+
+        .time-slot-card.past:hover {
+            border-color: #bdbdbd;
+            box-shadow: none;
+        }
+
         .time-slot-time {
             font-size: 1.1rem;
             font-weight: 600;
@@ -280,6 +291,10 @@
             display: flex;
             align-items: center;
             gap: 8px;
+        }
+
+        .time-slot-card.past .time-slot-time {
+            color: #757575;
         }
 
         .time-slot-status {
@@ -298,6 +313,11 @@
         .time-slot-status.booked {
             background: #fff3e0;
             color: #e65100;
+        }
+
+        .time-slot-status.past {
+            background: #eeeeee;
+            color: #757575;
         }
 
         .time-slot-actions {
@@ -346,7 +366,7 @@
 
         .form-row {
             display: grid;
-            grid-template-columns: 1fr 1fr auto;
+            grid-template-columns: 1fr 1fr auto auto;
             gap: 15px;
             align-items: end;
         }
@@ -431,11 +451,20 @@
             cursor: pointer;
             font-size: 0.85rem;
             transition: all 0.3s;
+            font-weight: 500;
         }
 
         .duration-preset:hover {
             border-color: #1e88e5;
             color: #1e88e5;
+            background: #e3f2fd;
+        }
+
+        .duration-preset.active {
+            background: #1e88e5;
+            color: white;
+            border-color: #1e88e5;
+            font-weight: 600;
         }
 
         /* Time Picker Clock */
@@ -745,6 +774,10 @@
                         <i class="fas fa-copy"></i>
                         Copy Week Schedule
                     </button>
+                    <button class="quick-action-btn" onclick="deleteAllSlots()" style="color: #c62828;">
+                        <i class="fas fa-trash-alt"></i>
+                        Delete All Slots
+                    </button>
                 </div>
             </div>
 
@@ -755,16 +788,86 @@
                     <div class="view-toggle">
                         <button class="view-btn active" onclick="switchView('day')">Day</button>
                         <button class="view-btn" onclick="switchView('week')">Week</button>
+                        <button class="view-btn" id="hidePastBtn" onclick="togglePastSlots()" style="margin-left: 10px;">
+                            <i class="fas fa-eye-slash"></i> Hide Past
+                        </button>
                     </div>
                 </div>
 
                 <!-- Add Slot Form -->
                 <div class="add-slot-form">
-                    <h3><i class="fas fa-plus-circle"></i> Add New Time Slot</h3>
+                    <h3><i class="fas fa-clock"></i> Time Range - Doctor Availability</h3>
+                    <p style="color: #6c757d; font-size: 0.95rem; margin-bottom: 20px;">
+                        Set your available time range and slot duration to automatically generate appointment slots
+                    </p>
                     
+                    <!-- Time Range Selection -->
+                    <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; border: 2px solid #e9ecef;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                            <div class="form-group">
+                                <label style="display: flex; align-items: center; gap: 8px; font-size: 1rem; color: #212529; margin-bottom: 12px;">
+                                    <i class="fas fa-play-circle" style="color: #4caf50;"></i>
+                                    <strong>Start Time</strong>
+                                </label>
+                                <input type="text" id="startTime" value="09:00 AM" readonly onclick="openTimePicker('start')" 
+                                       style="cursor: pointer; font-size: 1.2rem; font-weight: 600; text-align: center; padding: 16px; background: #f8f9fa;">
+                            </div>
+                            <div class="form-group">
+                                <label style="display: flex; align-items: center; gap: 8px; font-size: 1rem; color: #212529; margin-bottom: 12px;">
+                                    <i class="fas fa-stop-circle" style="color: #f44336;"></i>
+                                    <strong>End Time</strong>
+                                </label>
+                                <input type="text" id="endTime" value="05:00 PM" readonly onclick="openTimePicker('end')" 
+                                       style="cursor: pointer; font-size: 1.2rem; font-weight: 600; text-align: center; padding: 16px; background: #f8f9fa;">
+                            </div>
+                            <div class="form-group">
+                                <label style="display: flex; align-items: center; gap: 8px; font-size: 1rem; color: #212529; margin-bottom: 12px;">
+                                    <i class="fas fa-hourglass-half" style="color: #ff9800;"></i>
+                                    <strong>Slot Duration</strong>
+                                </label>
+                                <select id="slotDuration" onchange="updateSlotPreviewInfo()" 
+                                        style="cursor: pointer; font-size: 1.2rem; font-weight: 600; text-align: center; padding: 16px; background: #f8f9fa; border: 2px solid #e9ecef; border-radius: 10px; width: 100%;">
+                                    <option value="15">15 minutes</option>
+                                    <option value="30" selected>30 minutes</option>
+                                    <option value="45">45 minutes</option>
+                                    <option value="60">60 minutes</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Slot Preview Info -->
+                        <div id="slotPreviewInfo" style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); padding: 15px 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #1e88e5;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <i class="fas fa-info-circle" style="color: #1e88e5; font-size: 1.3rem;"></i>
+                                <div>
+                                    <div style="font-weight: 600; color: #212529; margin-bottom: 4px;">
+                                        <span id="totalSlotsPreview">16</span> appointment slots will be created
+                                    </div>
+                                    <div style="font-size: 0.9rem; color: #6c757d;">
+                                        From <strong id="previewStartTime">09:00 AM</strong> to <strong id="previewEndTime">05:00 PM</strong> 
+                                        with <strong id="previewDuration">30</strong> minute intervals
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 15px;">
+                            <button class="btn-primary" onclick="generateSlotsForDay(event)" style="padding: 16px; font-size: 1.05rem;">
+                                <i class="fas fa-calendar-plus"></i> Generate Slots for Today
+                            </button>
+                            <button class="btn-primary" onclick="addSingleSlot()" style="background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%); padding: 16px; font-size: 1.05rem;">
+                                <i class="fas fa-plus"></i> Add Single Slot
+                            </button>
+                            <button class="btn-outline" onclick="resetTimes()" style="padding: 16px 24px; background: white; color: #6c757d; border: 2px solid #e9ecef; border-radius: 10px; cursor: pointer; font-weight: 600;">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Slot Templates -->
                     <div class="slot-templates">
-                        <h4>📋 Quick Templates</h4>
+                        <h4>📋 Quick Templates - Apply Preset Schedules</h4>
                         <div class="template-grid">
                             <button class="template-btn" onclick="applyTemplate('morning')">
                                 <i class="fas fa-sun"></i>
@@ -787,27 +890,6 @@
                                 <small>9 AM - 9 PM</small>
                             </button>
                         </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Start Time</label>
-                            <input type="text" id="startTime" value="09:00 AM" readonly onclick="openTimePicker('start')" style="cursor: pointer;">
-                        </div>
-                        <div class="form-group">
-                            <label>End Time</label>
-                            <input type="text" id="endTime" value="09:30 AM" readonly onclick="openTimePicker('end')" style="cursor: pointer;">
-                        </div>
-                        <button class="btn-primary" onclick="addSlot()">
-                            <i class="fas fa-plus"></i> Add Slot
-                        </button>
-                    </div>
-                    <div class="duration-presets">
-                        <span style="font-size: 0.85rem; color: #6c757d; margin-right: 10px;">Quick Duration:</span>
-                        <button class="duration-preset" onclick="setDuration(15)">15 min</button>
-                        <button class="duration-preset active" onclick="setDuration(30)">30 min</button>
-                        <button class="duration-preset" onclick="setDuration(45)">45 min</button>
-                        <button class="duration-preset" onclick="setDuration(60)">1 hour</button>
                     </div>
                 </div>
 
@@ -866,6 +948,9 @@
     </div>
 
     <script>
+        // VERSION: 2.0 - Fixed date booking issue (no timezone conversion)
+        console.log('Calendar Script Version 2.0 - Date Fix Applied');
+        
         const token = localStorage.getItem('token');
         if (!token) window.location.href = '/login';
 
@@ -891,6 +976,11 @@
             renderMiniCalendar();
             selectDate(new Date());
             loadSlots();
+            updateSlotPreviewInfo();
+            
+            // Add event listeners for time changes
+            document.getElementById('startTime').addEventListener('click', () => updateSlotPreviewInfo());
+            document.getElementById('endTime').addEventListener('click', () => updateSlotPreviewInfo());
         }
 
         // Initialize clock with hours
@@ -964,10 +1054,15 @@
             
             if (clockMode === 'hour') {
                 // Calculate angle for hour (30 degrees per hour)
+                // Hours are positioned like: 12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
                 angle = (selectedHour % 12) * 30 - 90;
             } else {
-                // Calculate angle for minute (6 degrees per minute)
-                angle = selectedMinute * 6 - 90;
+                // Calculate angle for minute based on position index
+                // Minutes are at: 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55
+                // They are positioned at index * 30 degrees
+                const minutes = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+                const index = minutes.indexOf(selectedMinute);
+                angle = (index * 30) - 90;
             }
             
             hand.style.transform = `translate(-50%, -100%) rotate(${angle}deg)`;
@@ -1079,13 +1174,27 @@
             const minStr = selectedMinute.toString().padStart(2, '0');
             const timeStr = `${hourStr}:${minStr} ${selectedPeriod}`;
             
-            if (currentTimePicker === 'start') {
-                document.getElementById('startTime').value = timeStr;
-                // Auto-set end time 30 minutes later
-                const endTime = addMinutes(selectedHour, selectedMinute, selectedPeriod, 30);
-                document.getElementById('endTime').value = endTime;
+            // Check if we're in multi-slot mode
+            if (multiSlotPickerType) {
+                if (multiSlotPickerType === 'start') {
+                    document.getElementById('multiSlotStartTime').value = timeStr;
+                } else {
+                    document.getElementById('multiSlotEndTime').value = timeStr;
+                }
+                multiSlotPickerType = null;
+                updateSlotPreview();
             } else {
-                document.getElementById('endTime').value = timeStr;
+                // Regular single slot mode
+                if (currentTimePicker === 'start') {
+                    document.getElementById('startTime').value = timeStr;
+                    // Auto-set end time based on slot duration
+                    const duration = parseInt(document.getElementById('slotDuration').value);
+                    const endTime = addMinutes(selectedHour, selectedMinute, selectedPeriod, duration);
+                    document.getElementById('endTime').value = endTime;
+                } else {
+                    document.getElementById('endTime').value = timeStr;
+                }
+                updateSlotPreviewInfo();
             }
             
             closeTimePicker();
@@ -1115,46 +1224,238 @@
         // Template Functions
         function applyTemplate(template) {
             const templates = {
-                morning: { start: '09:00 AM', end: '01:00 PM' },
-                afternoon: { start: '02:00 PM', end: '06:00 PM' },
-                evening: { start: '06:00 PM', end: '09:00 PM' },
-                fullday: { start: '09:00 AM', end: '09:00 PM' }
+                morning: { start: '09:00 AM', end: '01:00 PM', name: 'Morning Shift' },
+                afternoon: { start: '02:00 PM', end: '06:00 PM', name: 'Afternoon' },
+                evening: { start: '06:00 PM', end: '09:00 PM', name: 'Evening' },
+                fullday: { start: '09:00 AM', end: '09:00 PM', name: 'Full Day' }
             };
             
             const selected = templates[template];
-            if (selected) {
-                document.getElementById('startTime').value = selected.start;
-                document.getElementById('endTime').value = selected.end;
-                
-                // Generate slots every 30 minutes
-                if (confirm(`Generate 30-minute slots from ${selected.start} to ${selected.end}?`)) {
-                    generateMultipleSlots(selected.start, selected.end, 30);
+            if (!selected) return;
+            
+            // Store template info globally
+            window.currentTemplate = selected;
+            window.selectedTemplateDuration = 30; // Default to 30 minutes
+            
+            // Show duration selection modal
+            const modal = document.createElement('div');
+            modal.className = 'time-picker-modal active';
+            modal.innerHTML = `
+                <div class="time-picker-content" style="max-width: 500px;">
+                    <div class="time-picker-header">
+                        <h3><i class="fas fa-clock"></i> ${selected.name}</h3>
+                        <p style="color: #6c757d; font-size: 0.95rem; margin-top: 10px;">
+                            ${selected.start} - ${selected.end}
+                        </p>
+                    </div>
+
+                    <div style="padding: 20px 0;">
+                        <label style="font-weight: 600; color: #495057; margin-bottom: 15px; display: block;">
+                            <i class="fas fa-hourglass-half"></i> Select Slot Duration
+                        </label>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;" id="durationButtons">
+                            <button class="duration-option" data-duration="15" 
+                                    style="padding: 20px; background: white; border: 3px solid #e9ecef; border-radius: 12px; cursor: pointer; transition: all 0.3s; font-size: 1rem;">
+                                <div style="font-size: 2rem; margin-bottom: 5px;">⏱️</div>
+                                <div style="font-weight: 600; color: #212529;">15 Minutes</div>
+                                <div style="font-size: 0.85rem; color: #6c757d; margin-top: 5px;">Quick consultations</div>
+                            </button>
+                            
+                            <button class="duration-option" data-duration="30" data-selected="true"
+                                    style="padding: 20px; background: #e3f2fd; border: 3px solid #1e88e5; border-radius: 12px; cursor: pointer; transition: all 0.3s; font-size: 1rem;">
+                                <div style="font-size: 2rem; margin-bottom: 5px;">⏰</div>
+                                <div style="font-weight: 600; color: #212529;">30 Minutes</div>
+                                <div style="font-size: 0.85rem; color: #6c757d; margin-top: 5px;">Standard (Recommended)</div>
+                            </button>
+                            
+                            <button class="duration-option" data-duration="45"
+                                    style="padding: 20px; background: white; border: 3px solid #e9ecef; border-radius: 12px; cursor: pointer; transition: all 0.3s; font-size: 1rem;">
+                                <div style="font-size: 2rem; margin-bottom: 5px;">🕐</div>
+                                <div style="font-weight: 600; color: #212529;">45 Minutes</div>
+                                <div style="font-size: 0.85rem; color: #6c757d; margin-top: 5px;">Detailed consultations</div>
+                            </button>
+                            
+                            <button class="duration-option" data-duration="60"
+                                    style="padding: 20px; background: white; border: 3px solid #e9ecef; border-radius: 12px; cursor: pointer; transition: all 0.3s; font-size: 1rem;">
+                                <div style="font-size: 2rem; margin-bottom: 5px;">⏳</div>
+                                <div style="font-weight: 600; color: #212529;">60 Minutes</div>
+                                <div style="font-size: 0.85rem; color: #6c757d; margin-top: 5px;">Extended sessions</div>
+                            </button>
+                        </div>
+                        
+                        <div id="templatePreview" style="background: #e3f2fd; padding: 15px; border-radius: 10px; margin-top: 20px;">
+                            <div style="display: flex; align-items: center; gap: 10px; color: #1e88e5;">
+                                <i class="fas fa-info-circle"></i>
+                                <span id="templatePreviewText" style="font-weight: 600;"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="time-picker-actions">
+                        <button class="btn-cancel" id="cancelTemplateBtn">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                        <button class="btn-confirm" id="confirmTemplateBtn">
+                            <i class="fas fa-check"></i> Generate Slots
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Add event listeners to duration buttons
+            const durationButtons = modal.querySelectorAll('.duration-option');
+            durationButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const duration = parseInt(this.getAttribute('data-duration'));
+                    selectTemplateDuration(duration);
+                });
+            });
+            
+            // Add event listener to cancel button
+            document.getElementById('cancelTemplateBtn').addEventListener('click', closeTemplateDurationModal);
+            
+            // Add event listener to confirm button
+            document.getElementById('confirmTemplateBtn').addEventListener('click', confirmTemplateGeneration);
+            
+            // Add hover effects
+            const style = document.createElement('style');
+            style.textContent = `
+                .duration-option:hover {
+                    transform: translateY(-3px);
+                    box-shadow: 0 6px 20px rgba(30, 136, 229, 0.3);
+                    border-color: #1e88e5 !important;
                 }
-            }
+                .duration-option[data-selected="true"] {
+                    background: #e3f2fd !important;
+                    border-color: #1e88e5 !important;
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // Show initial preview for 30 minutes (default)
+            selectTemplateDuration(30);
         }
 
-        async function generateMultipleSlots(startTime, endTime, duration) {
-            const start = parseTime(startTime);
-            const end = parseTime(endTime);
+        function selectTemplateDuration(duration) {
+            console.log('Duration selected:', duration);
             
-            let current = start;
-            const slots = [];
+            // Update selection
+            document.querySelectorAll('.duration-option').forEach(btn => {
+                btn.removeAttribute('data-selected');
+                btn.style.background = 'white';
+                btn.style.borderColor = '#e9ecef';
+            });
             
-            while (current < end) {
-                const slotEnd = new Date(current.getTime() + duration * 60000);
-                if (slotEnd <= end) {
-                    slots.push({
-                        start_time: current.toISOString(),
-                        end_time: slotEnd.toISOString()
-                    });
-                }
-                current = slotEnd;
+            const selectedBtn = document.querySelector(`[data-duration="${duration}"]`);
+            if (selectedBtn) {
+                selectedBtn.setAttribute('data-selected', 'true');
+                selectedBtn.style.background = '#e3f2fd';
+                selectedBtn.style.borderColor = '#1e88e5';
             }
+            
+            // Calculate slot count
+            const start = parseTime(window.currentTemplate.start);
+            const end = parseTime(window.currentTemplate.end);
+            const totalMinutes = (end - start) / (1000 * 60);
+            const slotCount = Math.floor(totalMinutes / duration);
+            
+            console.log('Slot count:', slotCount);
+            
+            // Show preview
+            const previewEl = document.getElementById('templatePreview');
+            const previewTextEl = document.getElementById('templatePreviewText');
+            
+            if (previewEl && previewTextEl) {
+                previewEl.style.display = 'block';
+                previewTextEl.textContent = `This will generate ${slotCount} slots of ${duration} minutes each`;
+            }
+            
+            // Store selected duration
+            window.selectedTemplateDuration = duration;
+        }
+
+        function closeTemplateDurationModal() {
+            console.log('Closing modal');
+            const modals = document.querySelectorAll('.time-picker-modal');
+            modals.forEach(modal => {
+                if (modal.querySelector('#confirmTemplateBtn')) {
+                    modal.remove();
+                }
+            });
+        }
+
+        async function confirmTemplateGeneration() {
+            console.log('Confirming template generation');
+            
+            const duration = window.selectedTemplateDuration;
+            const template = window.currentTemplate;
+            
+            if (!duration || !template) {
+                console.error('Missing duration or template');
+                return;
+            }
+            
+            console.log('Generating slots with duration:', duration);
+            console.log('Template:', template);
+            
+            closeTemplateDurationModal();
+            
+            // Generate slots
+            await generateMultipleSlots(template.start, template.end, duration);
+        }
+
+        async function generateMultipleSlots(startTimeStr, endTimeStr, duration) {
+            console.log('=== GENERATING MULTIPLE SLOTS ===');
+            console.log('Start time:', startTimeStr);
+            console.log('End time:', endTimeStr);
+            console.log('Duration:', duration, 'minutes');
+            console.log('Selected date:', selectedDate.toDateString());
+            
+            // Parse start and end times
+            const [startHour, startMin] = parseTimeString(startTimeStr);
+            const [endHour, endMin] = parseTimeString(endTimeStr);
+            
+            // Get selected date components
+            const year = selectedDate.getFullYear();
+            const month = selectedDate.getMonth();
+            const day = selectedDate.getDate();
+            
+            // Calculate total minutes
+            const startTotalMin = startHour * 60 + startMin;
+            const endTotalMin = endHour * 60 + endMin;
+            
+            const slots = [];
+            let currentMin = startTotalMin;
+            
+            while (currentMin + duration <= endTotalMin) {
+                const slotStartHour = Math.floor(currentMin / 60);
+                const slotStartMin = currentMin % 60;
+                const slotEndHour = Math.floor((currentMin + duration) / 60);
+                const slotEndMin = (currentMin + duration) % 60;
+                
+                const startDateTime = formatDateTime(year, month, day, slotStartHour, slotStartMin);
+                const endDateTime = formatDateTime(year, month, day, slotEndHour, slotEndMin);
+                
+                slots.push({
+                    start_time: startDateTime,
+                    end_time: endDateTime
+                });
+                
+                currentMin += duration;
+            }
+            
+            console.log(`Creating ${slots.length} slots`);
+            
+            let successCount = 0;
+            let errorCount = 0;
             
             // Add all slots
             for (const slot of slots) {
                 try {
-                    await fetch('/doctor/slots', {
+                    const res = await fetch('/doctor/slots', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -1162,13 +1463,26 @@
                         },
                         body: JSON.stringify(slot)
                     });
+                    
+                    if (res.ok) {
+                        successCount++;
+                    } else {
+                        errorCount++;
+                        console.error('Failed to add slot:', slot);
+                    }
                 } catch (error) {
+                    errorCount++;
                     console.error('Error adding slot:', error);
                 }
             }
             
             await loadSlots();
-            alert(`Added ${slots.length} slots successfully!`);
+            
+            if (errorCount === 0) {
+                alert(`✅ Successfully added ${successCount} slots!`);
+            } else {
+                alert(`⚠️ Added ${successCount} slots, ${errorCount} failed`);
+            }
         }
 
         function parseTime(timeStr) {
@@ -1179,8 +1493,17 @@
             if (period === 'PM' && hour !== 12) hour24 += 12;
             if (period === 'AM' && hour === 12) hour24 = 0;
             
-            const date = new Date(selectedDate);
-            date.setHours(hour24, minute, 0, 0);
+            // Create a new date using the year, month, and day from selectedDate
+            // This ensures we're working with the correct date without timezone issues
+            const date = new Date(
+                selectedDate.getFullYear(),
+                selectedDate.getMonth(),
+                selectedDate.getDate(),
+                hour24,
+                minute,
+                0,
+                0
+            );
             return date;
         }
 
@@ -1246,8 +1569,16 @@
         }
 
         function checkIfDateHasSlots(date) {
-            const dateStr = date.toISOString().split('T')[0];
-            return allSlots.some(slot => slot.start_time.startsWith(dateStr));
+            // Format date as YYYY-MM-DD in local timezone
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+            
+            return allSlots.some(slot => {
+                const slotDate = slot.start_time.split('T')[0];
+                return slotDate === dateStr;
+            });
         }
 
         // Load slots from server
@@ -1266,8 +1597,22 @@
 
         // Display slots for selected date
         function displaySlotsForDate(date) {
-            const dateStr = date.toISOString().split('T')[0];
-            const daySlots = allSlots.filter(slot => slot.start_time.startsWith(dateStr));
+            // Format date as YYYY-MM-DD in local timezone
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+            
+            console.log('Displaying slots for date:', dateStr);
+            console.log('All slots:', allSlots);
+            
+            const daySlots = allSlots.filter(slot => {
+                const slotDate = slot.start_time.split('T')[0];
+                console.log('Comparing:', slotDate, 'with', dateStr);
+                return slotDate === dateStr;
+            });
+            
+            console.log('Filtered slots:', daySlots);
             
             const container = document.getElementById('timeSlotsContainer');
             
@@ -1284,26 +1629,48 @@
             // Sort slots by time
             daySlots.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
 
+            const now = new Date();
+
             container.innerHTML = daySlots.map(slot => {
-                const start = new Date(slot.start_time);
-                const end = new Date(slot.end_time);
+                // Parse the datetime string WITHOUT timezone conversion
+                // The slot.start_time is in format "YYYY-MM-DDTHH:MM:SS"
+                const [datePart, timePart] = slot.start_time.split('T');
+                const [year, month, day] = datePart.split('-').map(Number);
+                const [hour, minute] = timePart.split(':').map(Number);
+                
+                // Create date in LOCAL timezone (not UTC)
+                const start = new Date(year, month - 1, day, hour, minute);
+                
+                const [endDatePart, endTimePart] = slot.end_time.split('T');
+                const [endYear, endMonth, endDay] = endDatePart.split('-').map(Number);
+                const [endHour, endMinute] = endTimePart.split(':').map(Number);
+                const end = new Date(endYear, endMonth - 1, endDay, endHour, endMinute);
+                
                 const startTime = start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
                 const endTime = end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
                 
+                // Check if slot is in the past
+                const isPast = slot.is_past || start <= now;
+                
                 return `
-                    <div class="time-slot-card ${slot.is_booked ? 'booked' : ''}">
+                    <div class="time-slot-card ${slot.is_booked ? 'booked' : ''} ${isPast ? 'past' : ''}">
                         <div class="time-slot-time">
                             <i class="fas fa-clock"></i>
                             ${startTime} - ${endTime}
                         </div>
-                        <span class="time-slot-status ${slot.is_booked ? 'booked' : 'available'}">
-                            ${slot.is_booked ? 'Booked' : 'Available'}
+                        <span class="time-slot-status ${slot.is_booked ? 'booked' : isPast ? 'past' : 'available'}">
+                            ${slot.is_booked ? 'Booked' : isPast ? 'Past' : 'Available'}
                         </span>
-                        ${!slot.is_booked ? `
+                        ${!slot.is_booked && !isPast ? `
                             <div class="time-slot-actions">
                                 <button class="slot-action-btn delete" onclick="deleteSlot(${slot.id})">
                                     <i class="fas fa-trash"></i> Delete
                                 </button>
+                            </div>
+                        ` : ''}
+                        ${isPast && !slot.is_booked ? `
+                            <div style="margin-top: 8px; font-size: 0.85rem; color: #6c757d;">
+                                <i class="fas fa-info-circle"></i> This slot has expired
                             </div>
                         ` : ''}
                     </div>
@@ -1321,13 +1688,25 @@
                 return;
             }
 
-            const startDateTime = parseTime(startTimeStr);
-            const endDateTime = parseTime(endTimeStr);
-
-            if (endDateTime <= startDateTime) {
-                alert('End time must be after start time');
-                return;
-            }
+            // Parse times
+            const [startHour, startMin, startPeriod] = parseTimeString(startTimeStr);
+            const [endHour, endMin, endPeriod] = parseTimeString(endTimeStr);
+            
+            // Get selected date components
+            const year = selectedDate.getFullYear();
+            const month = selectedDate.getMonth();
+            const day = selectedDate.getDate();
+            
+            // Create datetime strings in format: YYYY-MM-DDTHH:MM:SS
+            const startDateTime = formatDateTime(year, month, day, startHour, startMin);
+            const endDateTime = formatDateTime(year, month, day, endHour, endMin);
+            
+            console.log('=== ADDING SLOT ===');
+            console.log('Selected Date:', selectedDate.toDateString());
+            console.log('Start Time Input:', startTimeStr);
+            console.log('End Time Input:', endTimeStr);
+            console.log('Sending start_time:', startDateTime);
+            console.log('Sending end_time:', endDateTime);
 
             try {
                 const res = await fetch('/doctor/slots', {
@@ -1337,24 +1716,196 @@
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        start_time: startDateTime.toISOString(),
-                        end_time: endDateTime.toISOString()
+                        start_time: startDateTime,
+                        end_time: endDateTime
                     })
                 });
 
+                console.log('Response status:', res.status);
+
                 if (res.ok) {
+                    const data = await res.json();
+                    console.log('Response data:', data);
+                    alert('✅ Slot added successfully!');
                     await loadSlots();
+                    
                     // Auto-increment time for next slot
                     document.getElementById('startTime').value = endTimeStr;
-                    const nextEnd = new Date(endDateTime.getTime() + 30 * 60000);
-                    document.getElementById('endTime').value = formatTime(nextEnd);
+                    const nextEndMin = endMin + 30;
+                    const nextEndHour = nextEndMin >= 60 ? (endHour % 12) + 1 : endHour;
+                    const nextEndMinutes = nextEndMin % 60;
+                    document.getElementById('endTime').value = formatTimeString(nextEndHour, nextEndMinutes, endPeriod);
                 } else {
-                    alert('Failed to add slot');
+                    const errorData = await res.json();
+                    console.error('Error response:', errorData);
+                    alert('Failed to add slot: ' + (errorData.detail || 'Unknown error'));
                 }
             } catch (error) {
                 console.error('Error adding slot:', error);
-                alert('Error adding slot');
+                alert('Error adding slot: ' + error.message);
             }
+        }
+        
+        // Helper function to parse time string like "09:00 AM"
+        function parseTimeString(timeStr) {
+            const [time, period] = timeStr.split(' ');
+            const [hourStr, minStr] = time.split(':');
+            let hour = parseInt(hourStr);
+            const min = parseInt(minStr);
+            
+            // Convert to 24-hour format
+            if (period === 'PM' && hour !== 12) {
+                hour += 12;
+            } else if (period === 'AM' && hour === 12) {
+                hour = 0;
+            }
+            
+            return [hour, min, period];
+        }
+        
+        // Helper function to format datetime as YYYY-MM-DDTHH:MM:SS
+        function formatDateTime(year, month, day, hour, minute) {
+            const y = year;
+            const m = String(month + 1).padStart(2, '0');
+            const d = String(day).padStart(2, '0');
+            const h = String(hour).padStart(2, '0');
+            const min = String(minute).padStart(2, '0');
+            return `${y}-${m}-${d}T${h}:${min}:00`;
+        }
+        
+        // Helper function to format time as "HH:MM AM/PM"
+        function formatTimeString(hour, minute, period) {
+            const h = String(hour).padStart(2, '0');
+            const m = String(minute).padStart(2, '0');
+            return `${h}:${m} ${period}`;
+        }
+
+        // Reset times to default
+        function resetTimes() {
+            document.getElementById('startTime').value = '09:00 AM';
+            document.getElementById('endTime').value = '05:00 PM';
+            document.getElementById('slotDuration').value = '30';
+            updateSlotPreviewInfo();
+        }
+
+        // Update slot preview information
+        function updateSlotPreviewInfo() {
+            const startTimeStr = document.getElementById('startTime').value;
+            const endTimeStr = document.getElementById('endTime').value;
+            const duration = parseInt(document.getElementById('slotDuration').value);
+            
+            // Parse times
+            const [startHour, startMin] = parseTimeString(startTimeStr);
+            const [endHour, endMin] = parseTimeString(endTimeStr);
+            
+            // Calculate total minutes
+            const startTotalMin = startHour * 60 + startMin;
+            const endTotalMin = endHour * 60 + endMin;
+            const totalMinutes = endTotalMin - startTotalMin;
+            
+            // Calculate number of slots
+            const numSlots = Math.floor(totalMinutes / duration);
+            
+            // Update preview
+            document.getElementById('totalSlotsPreview').textContent = numSlots;
+            document.getElementById('previewStartTime').textContent = startTimeStr;
+            document.getElementById('previewEndTime').textContent = endTimeStr;
+            document.getElementById('previewDuration').textContent = duration;
+        }
+
+        // Generate slots for the selected day
+        async function generateSlotsForDay(event) {
+            const startTimeStr = document.getElementById('startTime').value;
+            const endTimeStr = document.getElementById('endTime').value;
+            const duration = parseInt(document.getElementById('slotDuration').value);
+            
+            if (!startTimeStr || !endTimeStr) {
+                alert('Please select both start and end times');
+                return;
+            }
+            
+            // Parse times
+            const [startHour, startMin] = parseTimeString(startTimeStr);
+            const [endHour, endMin] = parseTimeString(endTimeStr);
+            
+            // Get selected date components
+            const year = selectedDate.getFullYear();
+            const month = selectedDate.getMonth();
+            const day = selectedDate.getDate();
+            
+            // Calculate total minutes
+            const startTotalMin = startHour * 60 + startMin;
+            const endTotalMin = endHour * 60 + endMin;
+            
+            if (endTotalMin <= startTotalMin) {
+                alert('End time must be after start time');
+                return;
+            }
+            
+            let slotsCreated = 0;
+            let errors = 0;
+            let currentMin = startTotalMin;
+            
+            // Get button element
+            const button = event ? event.target : document.querySelector('button[onclick*="generateSlotsForDay"]');
+            
+            // Show progress
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+            button.disabled = true;
+            
+            try {
+                while (currentMin + duration <= endTotalMin) {
+                    const slotStartHour = Math.floor(currentMin / 60);
+                    const slotStartMin = currentMin % 60;
+                    const slotEndHour = Math.floor((currentMin + duration) / 60);
+                    const slotEndMin = (currentMin + duration) % 60;
+                    
+                    const startDateTime = formatDateTime(year, month, day, slotStartHour, slotStartMin);
+                    const endDateTime = formatDateTime(year, month, day, slotEndHour, slotEndMin);
+                    
+                    try {
+                        const res = await fetch('/doctor/slots', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({
+                                start_time: startDateTime,
+                                end_time: endDateTime
+                            })
+                        });
+                        
+                        if (res.ok) {
+                            slotsCreated++;
+                        } else {
+                            errors++;
+                            console.error('Failed to create slot:', await res.text());
+                        }
+                    } catch (error) {
+                        errors++;
+                        console.error('Error creating slot:', error);
+                    }
+                    
+                    currentMin += duration;
+                }
+                
+                await loadSlots();
+                alert(`✅ Successfully created ${slotsCreated} slots!${errors > 0 ? `\n⚠️ ${errors} slots failed to create.` : ''}`);
+            } catch (error) {
+                console.error('Error in generateSlotsForDay:', error);
+                alert('❌ Error generating slots: ' + error.message);
+            } finally {
+                // Restore button
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
+        }
+
+        // Add a single slot (original functionality)
+        async function addSingleSlot() {
+            await addSlot();
         }
 
         function formatTime(date) {
@@ -1390,42 +1941,814 @@
 
         // Set duration preset
         function setDuration(minutes) {
-            const startTimeStr = document.getElementById('startTime').value;
-            if (!startTimeStr) return;
+            let startTimeStr = document.getElementById('startTime').value;
+            
+            // If no start time is set, use current time rounded to next 15 minutes
+            if (!startTimeStr) {
+                const now = new Date();
+                const roundedMinutes = Math.ceil(now.getMinutes() / 15) * 15;
+                now.setMinutes(roundedMinutes);
+                now.setSeconds(0);
+                now.setMilliseconds(0);
+                startTimeStr = formatTime(now);
+                document.getElementById('startTime').value = startTimeStr;
+            }
 
             const startTime = parseTime(startTimeStr);
             const endTime = new Date(startTime.getTime() + minutes * 60000);
             
             document.getElementById('endTime').value = formatTime(endTime);
 
-            // Update active preset
+            // Update active preset - find the button that was clicked
             document.querySelectorAll('.duration-preset').forEach(btn => {
                 btn.classList.remove('active');
+                // Check if this button's onclick matches the duration
+                const btnText = btn.textContent.trim();
+                if ((minutes === 15 && btnText.includes('15')) ||
+                    (minutes === 30 && btnText.includes('30')) ||
+                    (minutes === 45 && btnText.includes('45')) ||
+                    (minutes === 60 && (btnText.includes('60') || btnText.includes('1 hour')))) {
+                    btn.classList.add('active');
+                }
             });
-            event.target.classList.add('active');
         }
 
         // Quick actions
         function addMultipleSlots() {
-            alert('Feature coming soon: Add multiple slots at once');
+            // Show modal for adding multiple slots
+            const modal = document.createElement('div');
+            modal.className = 'time-picker-modal active';
+            modal.innerHTML = `
+                <div class="time-picker-content" style="max-width: 600px;">
+                    <div class="time-picker-header">
+                        <h3><i class="fas fa-plus-circle"></i> Add Multiple Slots</h3>
+                        <p style="color: #6c757d; font-size: 0.95rem; margin-top: 10px;">Generate multiple time slots at once</p>
+                    </div>
+
+                    <div style="padding: 20px 0;">
+                        <div class="form-group" style="margin-bottom: 20px;">
+                            <label style="font-weight: 600; color: #495057; margin-bottom: 8px; display: block;">
+                                <i class="fas fa-calendar"></i> Select Dates
+                            </label>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div>
+                                    <label style="font-size: 0.85rem; color: #6c757d; margin-bottom: 5px; display: block;">From Date</label>
+                                    <input type="date" id="multiSlotStartDate" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 1rem;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.85rem; color: #6c757d; margin-bottom: 5px; display: block;">To Date</label>
+                                    <input type="date" id="multiSlotEndDate" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 1rem;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 20px;">
+                            <label style="font-weight: 600; color: #495057; margin-bottom: 8px; display: block;">
+                                <i class="fas fa-clock"></i> Time Range
+                            </label>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div>
+                                    <label style="font-size: 0.85rem; color: #6c757d; margin-bottom: 5px; display: block;">Start Time</label>
+                                    <input type="text" id="multiSlotStartTime" value="09:00 AM" readonly onclick="openTimePickerForMulti('start')" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 1rem; cursor: pointer; background: white;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.85rem; color: #6c757d; margin-bottom: 5px; display: block;">End Time</label>
+                                    <input type="text" id="multiSlotEndTime" value="05:00 PM" readonly onclick="openTimePickerForMulti('end')" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 1rem; cursor: pointer; background: white;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 20px;">
+                            <label style="font-weight: 600; color: #495057; margin-bottom: 8px; display: block;">
+                                <i class="fas fa-hourglass-half"></i> Slot Duration
+                            </label>
+                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                                <button class="duration-preset" onclick="setMultiSlotDuration(15)">15 min</button>
+                                <button class="duration-preset active" onclick="setMultiSlotDuration(30)">30 min</button>
+                                <button class="duration-preset" onclick="setMultiSlotDuration(45)">45 min</button>
+                                <button class="duration-preset" onclick="setMultiSlotDuration(60)">60 min</button>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 20px;">
+                            <label style="font-weight: 600; color: #495057; margin-bottom: 8px; display: block;">
+                                <i class="fas fa-calendar-week"></i> Select Days
+                            </label>
+                            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;">
+                                <button class="day-selector active" data-day="0" onclick="toggleDay(this)">Sun</button>
+                                <button class="day-selector active" data-day="1" onclick="toggleDay(this)">Mon</button>
+                                <button class="day-selector active" data-day="2" onclick="toggleDay(this)">Tue</button>
+                                <button class="day-selector active" data-day="3" onclick="toggleDay(this)">Wed</button>
+                                <button class="day-selector active" data-day="4" onclick="toggleDay(this)">Thu</button>
+                                <button class="day-selector active" data-day="5" onclick="toggleDay(this)">Fri</button>
+                                <button class="day-selector active" data-day="6" onclick="toggleDay(this)">Sat</button>
+                            </div>
+                        </div>
+
+                        <div style="background: #e3f2fd; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                            <div style="display: flex; align-items: center; gap: 10px; color: #1e88e5;">
+                                <i class="fas fa-info-circle"></i>
+                                <span id="slotPreview" style="font-size: 0.9rem; font-weight: 600;">
+                                    This will generate approximately 0 slots
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="time-picker-actions">
+                        <button class="btn-cancel" id="cancelMultiSlotBtn">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                        <button class="btn-confirm" id="confirmMultiSlotBtn">
+                            <i class="fas fa-check"></i> Generate Slots
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Set default dates
+            const today = new Date();
+            const nextWeek = new Date(today);
+            nextWeek.setDate(today.getDate() + 7);
+            
+            document.getElementById('multiSlotStartDate').value = today.toISOString().split('T')[0];
+            document.getElementById('multiSlotEndDate').value = nextWeek.toISOString().split('T')[0];
+            
+            // Add event listeners for date changes
+            document.getElementById('multiSlotStartDate').addEventListener('change', updateSlotPreview);
+            document.getElementById('multiSlotEndDate').addEventListener('change', updateSlotPreview);
+            
+            // Add event listeners for buttons
+            document.getElementById('cancelMultiSlotBtn').addEventListener('click', closeMultiSlotModal);
+            document.getElementById('confirmMultiSlotBtn').addEventListener('click', generateMultipleSlots);
+            
+            // Close modal when clicking outside
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    closeMultiSlotModal();
+                }
+            });
+            
+            // Add styles for day selector
+            const style = document.createElement('style');
+            style.textContent = `
+                .day-selector {
+                    padding: 10px;
+                    border: 2px solid #e9ecef;
+                    background: white;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-weight: 600;
+                    font-size: 0.85rem;
+                    transition: all 0.3s;
+                }
+                .day-selector:hover {
+                    border-color: #1e88e5;
+                }
+                .day-selector.active {
+                    background: #1e88e5;
+                    color: white;
+                    border-color: #1e88e5;
+                }
+            `;
+            document.head.appendChild(style);
+            
+            updateSlotPreview();
+        }
+
+        let multiSlotDuration = 30;
+        let multiSlotPickerType = null;
+
+        function setMultiSlotDuration(minutes) {
+            multiSlotDuration = minutes;
+            document.querySelectorAll('.duration-preset').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            updateSlotPreview();
+        }
+
+        function toggleDay(button) {
+            button.classList.toggle('active');
+            updateSlotPreview();
+        }
+
+        function updateSlotPreview() {
+            const startDate = document.getElementById('multiSlotStartDate')?.value;
+            const endDate = document.getElementById('multiSlotEndDate')?.value;
+            const startTime = document.getElementById('multiSlotStartTime')?.value;
+            const endTime = document.getElementById('multiSlotEndTime')?.value;
+            
+            if (!startDate || !endDate || !startTime || !endTime) return;
+            
+            const selectedDays = Array.from(document.querySelectorAll('.day-selector.active')).map(btn => parseInt(btn.dataset.day));
+            
+            // Calculate number of slots
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const startTimeObj = parseTime(startTime);
+            const endTimeObj = parseTime(endTime);
+            
+            const dailyMinutes = (endTimeObj - startTimeObj) / (1000 * 60);
+            const slotsPerDay = Math.floor(dailyMinutes / multiSlotDuration);
+            
+            let totalDays = 0;
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                if (selectedDays.includes(d.getDay())) {
+                    totalDays++;
+                }
+            }
+            
+            const totalSlots = totalDays * slotsPerDay;
+            
+            const preview = document.getElementById('slotPreview');
+            if (preview) {
+                preview.textContent = `This will generate ${totalSlots} slots across ${totalDays} days`;
+            }
+        }
+
+        function openTimePickerForMulti(type) {
+            multiSlotPickerType = type;
+            const currentValue = document.getElementById(type === 'start' ? 'multiSlotStartTime' : 'multiSlotEndTime').value;
+            const [time, period] = currentValue.split(' ');
+            const [hour, minute] = time.split(':');
+            
+            selectedHour = parseInt(hour);
+            selectedMinute = parseInt(minute);
+            selectedPeriod = period;
+            
+            clockMode = 'hour';
+            switchToHourMode();
+            updateTimeDisplay();
+            updatePeriodButtons();
+            
+            document.getElementById('timePickerModal').classList.add('active');
+            document.getElementById('timePickerTitle').textContent = type === 'start' ? 'Select Start Time' : 'Select End Time';
+        }
+
+        function closeMultiSlotModal() {
+            const modals = document.querySelectorAll('.time-picker-modal');
+            modals.forEach(modal => {
+                if (modal.querySelector('#multiSlotStartDate')) {
+                    modal.remove();
+                }
+            });
+        }
+
+        // Helper function to format date as ISO without timezone conversion
+        function formatLocalISO(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+        }
+
+        async function generateMultipleSlots() {
+            const startDate = document.getElementById('multiSlotStartDate').value;
+            const endDate = document.getElementById('multiSlotEndDate').value;
+            const startTime = document.getElementById('multiSlotStartTime').value;
+            const endTime = document.getElementById('multiSlotEndTime').value;
+            const selectedDays = Array.from(document.querySelectorAll('.day-selector.active')).map(btn => parseInt(btn.dataset.day));
+            
+            if (!startDate || !endDate || !startTime || !endTime) {
+                alert('Please fill all fields');
+                return;
+            }
+            
+            if (selectedDays.length === 0) {
+                alert('Please select at least one day');
+                return;
+            }
+            
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            let slotsCreated = 0;
+            let errors = 0;
+            
+            // Show progress
+            const preview = document.getElementById('slotPreview');
+            preview.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating slots...';
+            
+            // Parse start and end times
+            const [startHour, startMin] = parseTimeString(startTime);
+            const [endHour, endMin] = parseTimeString(endTime);
+            
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                if (selectedDays.includes(d.getDay())) {
+                    const year = d.getFullYear();
+                    const month = d.getMonth();
+                    const day = d.getDate();
+                    
+                    // Calculate total minutes for the day
+                    const startTotalMin = startHour * 60 + startMin;
+                    const endTotalMin = endHour * 60 + endMin;
+                    
+                    let currentMin = startTotalMin;
+                    
+                    while (currentMin + multiSlotDuration <= endTotalMin) {
+                        const slotStartHour = Math.floor(currentMin / 60);
+                        const slotStartMin = currentMin % 60;
+                        const slotEndHour = Math.floor((currentMin + multiSlotDuration) / 60);
+                        const slotEndMin = (currentMin + multiSlotDuration) % 60;
+                        
+                        const startDateTime = formatDateTime(year, month, day, slotStartHour, slotStartMin);
+                        const endDateTime = formatDateTime(year, month, day, slotEndHour, slotEndMin);
+                        
+                        try {
+                            const res = await fetch('/doctor/slots', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${token}`
+                                },
+                                body: JSON.stringify({
+                                    start_time: startDateTime,
+                                    end_time: endDateTime
+                                })
+                            });
+                            
+                            if (res.ok) {
+                                slotsCreated++;
+                            } else {
+                                errors++;
+                                console.error('Failed to create slot:', await res.text());
+                            }
+                        } catch (error) {
+                            errors++;
+                            console.error('Error creating slot:', error);
+                        }
+                        
+                        currentMin += multiSlotDuration;
+                    }
+                }
+            }
+            
+            closeMultiSlotModal();
+            await loadSlots();
+            alert(`✅ Successfully created ${slotsCreated} slots!${errors > 0 ? `\n⚠️ ${errors} slots failed to create.` : ''}`);
         }
 
         function viewAllSlots() {
-            alert('Feature coming soon: View all your slots in a list');
+            // Create modal to show all slots
+            const modal = document.createElement('div');
+            modal.className = 'time-picker-modal active';
+            
+            // Group slots by date
+            const slotsByDate = {};
+            allSlots.forEach(slot => {
+                const date = slot.start_time.split('T')[0];
+                if (!slotsByDate[date]) {
+                    slotsByDate[date] = [];
+                }
+                slotsByDate[date].push(slot);
+            });
+            
+            // Sort dates
+            const sortedDates = Object.keys(slotsByDate).sort();
+            
+            let slotsHTML = '';
+            if (sortedDates.length === 0) {
+                slotsHTML = '<div style="text-align: center; padding: 40px; color: #6c757d;"><i class="fas fa-calendar-times" style="font-size: 3rem; margin-bottom: 15px;"></i><p>No slots found</p></div>';
+            } else {
+                sortedDates.forEach(date => {
+                    const dateObj = new Date(date + 'T00:00:00');
+                    const dateStr = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                    const slots = slotsByDate[date];
+                    
+                    slotsHTML += `
+                        <div style="margin-bottom: 20px;">
+                            <div style="background: #1e88e5; color: white; padding: 10px 15px; border-radius: 8px; font-weight: 600; margin-bottom: 10px;">
+                                📅 ${dateStr} (${slots.length} slots)
+                            </div>
+                            <div style="display: grid; gap: 8px;">
+                    `;
+                    
+                    slots.forEach(slot => {
+                        const start = new Date(slot.start_time);
+                        const end = new Date(slot.end_time);
+                        const startTime = start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                        const endTime = end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                        const status = slot.is_booked ? 'Booked' : slot.is_past ? 'Past' : 'Available';
+                        const statusColor = slot.is_booked ? '#ff9800' : slot.is_past ? '#9e9e9e' : '#4caf50';
+                        
+                        slotsHTML += `
+                            <div style="background: white; padding: 12px; border-radius: 8px; border-left: 4px solid ${statusColor}; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <span style="font-weight: 600; color: #212529;">⏰ ${startTime} - ${endTime}</span>
+                                </div>
+                                <div>
+                                    <span style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">
+                                        ${status}
+                                    </span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    slotsHTML += `
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            modal.innerHTML = `
+                <div class="time-picker-content" style="max-width: 700px; max-height: 80vh; overflow-y: auto;">
+                    <div class="time-picker-header">
+                        <h3><i class="fas fa-list"></i> All Slots</h3>
+                        <p style="color: #6c757d; font-size: 0.95rem; margin-top: 10px;">
+                            Total: ${allSlots.length} slots
+                        </p>
+                    </div>
+
+                    <div style="padding: 20px 0;">
+                        ${slotsHTML}
+                    </div>
+
+                    <div class="time-picker-actions">
+                        <button class="btn-confirm" onclick="closeViewAllSlotsModal()" style="width: 100%;">
+                            <i class="fas fa-times"></i> Close
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+
+        function closeViewAllSlotsModal() {
+            const modal = document.querySelector('.time-picker-modal');
+            if (modal) {
+                modal.remove();
+            }
         }
 
         function copyWeekSlots() {
-            alert('Feature coming soon: Copy this week\'s schedule to next week');
+            // Create modal for week selection
+            const modal = document.createElement('div');
+            modal.className = 'time-picker-modal active';
+            modal.innerHTML = `
+                <div class="time-picker-content" style="max-width: 600px;">
+                    <div class="time-picker-header">
+                        <h3><i class="fas fa-copy"></i> Copy Week Schedule</h3>
+                        <p style="color: #6c757d; font-size: 0.95rem; margin-top: 10px;">
+                            Copy all slots from one week to another
+                        </p>
+                    </div>
+
+                    <div style="padding: 20px 0;">
+                        <div class="form-group" style="margin-bottom: 25px;">
+                            <label style="font-weight: 600; color: #495057; margin-bottom: 12px; display: block;">
+                                <i class="fas fa-calendar-week"></i> Source Week (Copy FROM)
+                            </label>
+                            <p style="font-size: 0.9rem; color: #6c757d; margin-bottom: 10px;">
+                                Select any date in the week you want to copy
+                            </p>
+                            <input type="date" id="sourceWeekDate" 
+                                   style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 1rem;">
+                            <div id="sourceWeekInfo" style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 8px; font-size: 0.9rem;">
+                                Select a date to see week range
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 25px;">
+                            <label style="font-weight: 600; color: #495057; margin-bottom: 12px; display: block;">
+                                <i class="fas fa-calendar-plus"></i> Target Week (Copy TO)
+                            </label>
+                            <p style="font-size: 0.9rem; color: #6c757d; margin-bottom: 10px;">
+                                Select any date in the week you want to copy to
+                            </p>
+                            <input type="date" id="targetWeekDate" 
+                                   style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 1rem;">
+                            <div id="targetWeekInfo" style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 8px; font-size: 0.9rem;">
+                                Select a date to see week range
+                            </div>
+                        </div>
+
+                        <div id="copyPreview" style="background: #e3f2fd; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: none;">
+                            <div style="display: flex; align-items: center; gap: 10px; color: #1e88e5; margin-bottom: 10px;">
+                                <i class="fas fa-info-circle"></i>
+                                <span style="font-weight: 600;">Preview</span>
+                            </div>
+                            <div id="copyPreviewContent" style="font-size: 0.9rem; color: #495057;"></div>
+                        </div>
+                    </div>
+
+                    <div class="time-picker-actions">
+                        <button class="btn-cancel" onclick="closeCopyWeekModal()">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                        <button class="btn-confirm" id="copyWeekConfirmBtn" onclick="executeCopyWeek()" disabled>
+                            <i class="fas fa-copy"></i> Copy Slots
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Add event listeners
+            document.getElementById('sourceWeekDate').addEventListener('change', updateCopyWeekPreview);
+            document.getElementById('targetWeekDate').addEventListener('change', updateCopyWeekPreview);
+            
+            // Set default to current week
+            const today = new Date();
+            document.getElementById('sourceWeekDate').value = today.toISOString().split('T')[0];
+            updateCopyWeekPreview();
+        }
+
+        function closeCopyWeekModal() {
+            const modal = document.querySelector('.time-picker-modal');
+            if (modal && modal.querySelector('#sourceWeekDate')) {
+                modal.remove();
+            }
+        }
+
+        function getWeekRange(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day; // Sunday as start of week
+            
+            const sunday = new Date(d.setDate(diff));
+            const saturday = new Date(d.setDate(diff + 6));
+            
+            return {
+                start: sunday,
+                end: saturday,
+                startStr: sunday.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                endStr: saturday.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            };
+        }
+
+        async function updateCopyWeekPreview() {
+            const sourceDate = document.getElementById('sourceWeekDate').value;
+            const targetDate = document.getElementById('targetWeekDate').value;
+            
+            if (!sourceDate) {
+                document.getElementById('sourceWeekInfo').innerHTML = 'Select a date to see week range';
+                return;
+            }
+            
+            const sourceWeek = getWeekRange(new Date(sourceDate));
+            document.getElementById('sourceWeekInfo').innerHTML = `
+                <strong>Week Range:</strong> ${sourceWeek.startStr} - ${sourceWeek.endStr}
+            `;
+            
+            if (targetDate) {
+                const targetWeek = getWeekRange(new Date(targetDate));
+                document.getElementById('targetWeekInfo').innerHTML = `
+                    <strong>Week Range:</strong> ${targetWeek.startStr} - ${targetWeek.endStr}
+                `;
+                
+                // Count slots in source week
+                const sourceSlots = allSlots.filter(slot => {
+                    const slotDate = new Date(slot.start_time);
+                    return slotDate >= sourceWeek.start && slotDate <= sourceWeek.end;
+                });
+                
+                // Show preview
+                const preview = document.getElementById('copyPreview');
+                const previewContent = document.getElementById('copyPreviewContent');
+                
+                if (sourceSlots.length === 0) {
+                    previewContent.innerHTML = `
+                        <div style="color: #f57c00;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            No slots found in source week
+                        </div>
+                    `;
+                    document.getElementById('copyWeekConfirmBtn').disabled = true;
+                } else {
+                    previewContent.innerHTML = `
+                        <div><strong>${sourceSlots.length} slots</strong> will be copied from:</div>
+                        <div style="margin: 5px 0;">${sourceWeek.startStr} - ${sourceWeek.endStr}</div>
+                        <div style="margin-top: 10px;">To:</div>
+                        <div style="margin: 5px 0;">${targetWeek.startStr} - ${targetWeek.endStr}</div>
+                    `;
+                    document.getElementById('copyWeekConfirmBtn').disabled = false;
+                }
+                
+                preview.style.display = 'block';
+            } else {
+                document.getElementById('targetWeekInfo').innerHTML = 'Select a date to see week range';
+                document.getElementById('copyPreview').style.display = 'none';
+            }
+        }
+
+        async function executeCopyWeek() {
+            const sourceDate = document.getElementById('sourceWeekDate').value;
+            const targetDate = document.getElementById('targetWeekDate').value;
+            
+            if (!sourceDate || !targetDate) {
+                alert('Please select both source and target weeks');
+                return;
+            }
+            
+            const sourceWeek = getWeekRange(new Date(sourceDate));
+            const targetWeek = getWeekRange(new Date(targetDate));
+            
+            // Get slots from source week
+            const sourceSlots = allSlots.filter(slot => {
+                const slotDate = new Date(slot.start_time);
+                return slotDate >= sourceWeek.start && slotDate <= sourceWeek.end;
+            });
+            
+            if (sourceSlots.length === 0) {
+                alert('No slots found in source week');
+                return;
+            }
+            
+            // Confirm
+            const confirmed = confirm(
+                `Copy ${sourceSlots.length} slots?\n\n` +
+                `FROM: ${sourceWeek.startStr} - ${sourceWeek.endStr}\n` +
+                `TO: ${targetWeek.startStr} - ${targetWeek.endStr}\n\n` +
+                `This will create new slots in the target week.`
+            );
+            
+            if (!confirmed) return;
+            
+            // Calculate day difference
+            const dayDiff = Math.floor((targetWeek.start - sourceWeek.start) / (1000 * 60 * 60 * 24));
+            
+            console.log('Copying slots with day difference:', dayDiff);
+            
+            let successCount = 0;
+            let errorCount = 0;
+            
+            // Show progress
+            document.getElementById('copyPreviewContent').innerHTML = `
+                <div style="text-align: center;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #1e88e5;"></i>
+                    <div style="margin-top: 10px;">Copying slots...</div>
+                </div>
+            `;
+            
+            // Copy each slot
+            for (const slot of sourceSlots) {
+                try {
+                    const sourceStart = new Date(slot.start_time);
+                    const sourceEnd = new Date(slot.end_time);
+                    
+                    // Add day difference to get target dates
+                    const targetStart = new Date(sourceStart);
+                    targetStart.setDate(targetStart.getDate() + dayDiff);
+                    
+                    const targetEnd = new Date(sourceEnd);
+                    targetEnd.setDate(targetEnd.getDate() + dayDiff);
+                    
+                    console.log('Copying slot:', {
+                        source: formatLocalISO(sourceStart),
+                        target: formatLocalISO(targetStart)
+                    });
+                    
+                    const response = await fetch('/doctor/slots', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            start_time: formatLocalISO(targetStart),
+                            end_time: formatLocalISO(targetEnd)
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        successCount++;
+                    } else {
+                        errorCount++;
+                        console.error('Failed to copy slot:', await response.text());
+                    }
+                } catch (error) {
+                    errorCount++;
+                    console.error('Error copying slot:', error);
+                }
+            }
+            
+            // Reload slots
+            await loadSlots();
+            
+            // Close modal
+            closeCopyWeekModal();
+            
+            // Show result
+            if (errorCount === 0) {
+                alert(`✅ Successfully copied ${successCount} slots!`);
+            } else {
+                alert(`⚠️ Copied ${successCount} slots\n${errorCount} slots failed to copy`);
+            }
+        }
+
+        async function deleteAllSlots() {
+            console.log('deleteAllSlots called');
+            console.log('All slots:', allSlots);
+            
+            // Count unbooked slots
+            const unbookedSlots = allSlots.filter(slot => !slot.is_booked && !slot.is_past);
+            
+            console.log('Unbooked slots:', unbookedSlots);
+            console.log('Unbooked slots count:', unbookedSlots.length);
+            
+            if (unbookedSlots.length === 0) {
+                alert('No available slots to delete.');
+                return;
+            }
+            
+            const confirmed = confirm(
+                `⚠️ WARNING: This will delete ALL ${unbookedSlots.length} available slots!\n\n` +
+                `Booked slots will NOT be deleted.\n\n` +
+                `Are you sure you want to continue?`
+            );
+            
+            if (!confirmed) {
+                console.log('User cancelled first confirmation');
+                return;
+            }
+            
+            // Double confirmation for safety
+            const doubleConfirm = confirm(
+                `🚨 FINAL CONFIRMATION\n\n` +
+                `You are about to delete ${unbookedSlots.length} slots.\n` +
+                `This action CANNOT be undone!\n\n` +
+                `Click OK to proceed with deletion.`
+            );
+            
+            if (!doubleConfirm) {
+                console.log('User cancelled second confirmation');
+                return;
+            }
+            
+            console.log('Sending DELETE request to /doctor/slots/all');
+            
+            try {
+                const res = await fetch('/doctor/slots/all', {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                console.log('Response status:', res.status);
+                console.log('Response ok:', res.ok);
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    console.log('Response data:', data);
+                    await loadSlots();
+                    alert(`✅ Successfully deleted ${data.deleted} slots!`);
+                } else {
+                    const error = await res.text();
+                    console.error('Error response:', error);
+                    alert(`❌ Failed to delete slots: ${error}`);
+                }
+            } catch (error) {
+                console.error('Exception in deleteAllSlots:', error);
+                alert('❌ Error deleting slots. Please try again.');
+            }
         }
 
         function switchView(view) {
             document.querySelectorAll('.view-btn').forEach(btn => {
-                btn.classList.remove('active');
+                if (!btn.id) { // Don't affect the Hide Past button
+                    btn.classList.remove('active');
+                }
             });
-            event.target.classList.add('active');
+            if (!event.target.id) { // Only add active to Day/Week buttons
+                event.target.classList.add('active');
+            }
             
             if (view === 'week') {
                 alert('Week view coming soon!');
+            }
+        }
+
+        // Toggle past slots visibility
+        let hidePastSlots = false;
+        function togglePastSlots() {
+            hidePastSlots = !hidePastSlots;
+            const btn = document.getElementById('hidePastBtn');
+            
+            if (hidePastSlots) {
+                btn.innerHTML = '<i class="fas fa-eye"></i> Show Past';
+                btn.classList.add('active');
+                // Hide past slot cards
+                document.querySelectorAll('.time-slot-card.past').forEach(card => {
+                    card.style.display = 'none';
+                });
+            } else {
+                btn.innerHTML = '<i class="fas fa-eye-slash"></i> Hide Past';
+                btn.classList.remove('active');
+                // Show all slot cards
+                document.querySelectorAll('.time-slot-card.past').forEach(card => {
+                    card.style.display = 'block';
+                });
             }
         }
 

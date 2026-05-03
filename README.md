@@ -5,7 +5,13 @@ Medipure is a modern, premium healthcare platform that connects patients with do
 ## Features
 - **Three User Roles**: Admin, Doctor, and Patient
 - **Search & Filter**: Find doctors by area (nearby) and specialty/disease
-- **Slot Management**: Doctors can upload and manage their availability slots
+- **Advanced Slot Management**: 
+  - Visual clock picker with hour/minute selection modes
+  - Mini calendar with date selection and slot indicators
+  - Multi-slot generation across date ranges
+  - Quick templates for common schedules
+  - Duration presets (15/30/45/60 minutes)
+  - Auto-increment for rapid slot creation
 - **Booking System**: Patients can book slots for video calls or physical visits
 - **AI Automation**: 
   - **Alert System**: Background tasks send automated booking reminders
@@ -13,6 +19,7 @@ Medipure is a modern, premium healthcare platform that connects patients with do
 - **Professional Design**: Premium medical-themed UI with smooth animations
 - **Complete Profile Management**: Users can view and update their profiles
 - **Appointment Tracking**: View all appointments with detailed information
+- **Services Page**: Comprehensive overview of all healthcare services offered
 
 ## Tech Stack
 - **Backend**: FastAPI (Python)
@@ -82,7 +89,16 @@ Medipure is a modern, premium healthcare platform that connects patients with do
 ### For Doctors
 1. **Register** as a doctor with your license, specialty, and clinic information
 2. **Login** with your credentials
-3. **Manage availability slots** - add time slots when you're available
+3. **Manage availability slots** with the enhanced time range interface:
+   - **Time Range Selection** - Set start time (e.g., 09:00 AM) and end time (e.g., 05:00 PM)
+   - **Slot Duration** - Choose 15, 30, 45, or 60-minute appointment durations
+   - **Auto-Generate Slots** - Automatically create all slots within your time range with one click
+   - **Visual Preview** - See how many slots will be created before generating
+   - **Quick Templates** - Apply preset schedules (Morning, Afternoon, Evening, Full Day)
+   - **Visual Clock Picker** - Select times using an intuitive clock interface with hour and minute modes
+   - **Mini Calendar** - View and select dates with visual indicators for slots
+   - **Multi-Slot Generation** - Create multiple slots across date ranges with day-of-week selection
+   - **Slot Management** - View, edit, and delete available slots
 4. **View appointments** - see all scheduled consultations
 5. **Track patients** - view patient information and appointment history
 6. **Update your profile** with bio, consultation fees, and specialization
@@ -107,6 +123,7 @@ Medipure is a modern, premium healthcare platform that connects patients with do
 ### Doctor Endpoints
 - `POST /doctor/slots` - Add availability slot
 - `GET /doctor/slots` - Get all doctor's slots
+- `DELETE /doctor/slots/{slot_id}` - Delete an available slot
 - `GET /doctor/appointments` - Get all doctor appointments
 
 ### Profile Endpoints
@@ -134,6 +151,35 @@ Medipure is a modern, premium healthcare platform that connects patients with do
 - patient_id, doctor_id, slot_id, appointment_type (video/physical), status, created_at
 
 ## Features in Detail
+
+### Advanced Calendar & Slot Management
+The calendar system provides a real-world, mobile-app-like experience:
+- **Visual Clock Picker**: 
+  - Animated clock hand pointing to selected time
+  - Separate hour and minute selection modes
+  - AM/PM toggle for 12-hour format
+  - Smooth transitions and visual feedback
+- **Mini Calendar**:
+  - Current month view with navigation
+  - Visual indicators for dates with slots
+  - Today and selected date highlighting
+  - Quick date selection
+- **Multi-Slot Generation**:
+  - Create slots across multiple dates
+  - Select specific days of the week
+  - Set time ranges and slot duration
+  - Preview total slots before generation
+  - Batch creation with progress tracking
+- **Quick Templates**:
+  - Morning Shift (9 AM - 1 PM)
+  - Afternoon (2 PM - 6 PM)
+  - Evening (6 PM - 9 PM)
+  - Full Day (9 AM - 9 PM)
+- **Smart Features**:
+  - Auto-increment time after adding slots
+  - Duration presets (15/30/45/60 minutes)
+  - Delete available slots
+  - View slots by date
 
 ### AI Health Assistant
 The AI Health Assistant analyzes patient symptoms and recommends appropriate specialists:
@@ -170,7 +216,7 @@ Doctors can:
 ```
 Medipure/
 ├── main.py              # FastAPI application and API endpoints
-├── auth.py              # Authentication and JWT handling
+├── auth.py              # Authentication and token handling
 ├── database.py          # Database models and configuration
 ├── config.py            # Application configuration
 ├── requirements.txt     # Python dependencies
@@ -178,11 +224,15 @@ Medipure/
 ├── static/             # Frontend files
 │   ├── index.html      # Landing page
 │   ├── login.html      # Login/Registration page
-│   ├── dashboard.html  # User dashboard
+│   ├── dashboard.html  # User dashboard (role-specific)
 │   ├── profile.html    # Profile management
+│   ├── calendar.html   # Advanced slot management calendar
+│   ├── services.html   # Services overview page
+│   ├── top-doctors.html # Top-rated doctors listing
 │   ├── index.css       # Main styles
 │   ├── footer-styles.css
 │   ├── logo.svg
+│   ├── favicon.svg
 │   ├── privacy.html    # Privacy policy
 │   ├── terms.html      # Terms of service
 │   └── contact.html    # Contact page

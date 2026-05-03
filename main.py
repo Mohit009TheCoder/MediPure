@@ -4,12 +4,34 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
+import pytz
 import database
 import auth
 from pydantic import BaseModel
 from typing import List, Optional
 
 app = FastAPI(title="Medipure - Doctor Appointment System")
+
+# Define IST timezone
+IST = pytz.timezone('Asia/Kolkata')
+
+def get_ist_now():
+    """Get current time in IST"""
+    return datetime.now(IST)
+
+def utc_to_ist(utc_dt):
+    """Convert UTC datetime to IST"""
+    if utc_dt.tzinfo is None:
+        # If datetime is naive (no timezone), assume it's UTC
+        utc_dt = pytz.utc.localize(utc_dt)
+    return utc_dt.astimezone(IST)
+
+def ist_to_utc(ist_dt):
+    """Convert IST datetime to UTC"""
+    if ist_dt.tzinfo is None:
+        # If datetime is naive, assume it's IST
+        ist_dt = IST.localize(ist_dt)
+    return ist_dt.astimezone(pytz.utc)
 
 # Mount static files for the frontend
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -140,31 +162,124 @@ def add_slot(slot: SlotCreate, current_user: database.User = Depends(auth.get_cu
     if current_user.role != "doctor":
         raise HTTPException(status_code=403, detail="Only doctors can add slots")
     
+    print(f"=== ADDING SLOT ===")
+    print(f"Doctor ID: {current_user.id}")
+    print(f"Start time received: {slot.start_time}")
+    print(f"End time received: {slot.end_time}")
+    print(f"Start time type: {type(slot.start_time)}")
+    
+    # Store datetime as-is (remove tzinfo if present)
+    start_utc = slot.start_time.replace(tzinfo=None) if slot.start_time.tzinfo else slot.start_time
+    end_utc = slot.end_time.replace(tzinfo=None) if slot.end_time.tzinfo else slot.end_time
+    
+    print(f"Start time to store: {start_utc}")
+    print(f"End time to store: {end_utc}")
+    
     new_slot = database.Slot(
         doctor_id=current_user.id,
-        start_time=slot.start_time,
-        end_time=slot.end_time
+        start_time=start_utc,
+        end_time=end_utc
     )
+    
+    print(f"Slot object created: {new_slot}")
+    
     db.add(new_slot)
     db.commit()
-    return {"message": "Slot added successfully"}
+    db.refresh(new_slot)
+    
+    print(f"Slot saved with ID: {new_slot.id}")
+    print(f"=== SLOT ADDED SUCCESSFULLY ===")
+    
+    return {
+        "message": "Slot added successfully",
+        "slot_id": new_slot.id,
+        "start_time": new_slot.start_time.isoformat(),
+        "end_time": new_slot.end_time.isoformat()
+    }
 
 @app.get("/doctor/slots")
 def get_my_slots(current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
     if current_user.role != "doctor":
         raise HTTPException(status_code=403, detail="Only doctors can view their slots")
     
-    slots = db.query(database.Slot).filter(database.Slot.doctor_id == current_user.id).all()
+    # Get current time in UTC for comparison
+    now_utc = datetime.utcnow()
+    
+    slots = db.query(database.Slot).filter(database.Slot.doctor_id == current_user.id).order_by(database.Slot.start_time).all()
     result = []
     for slot in slots:
+        # Return times as-is (they're already in UTC from storage)
+        # Frontend will handle display in local timezone
+        
+        # Check if slot is in the past (compare in UTC)
+        is_past = slot.start_time <= now_utc
+        
         result.append({
             "id": slot.id,
             "doctor_id": slot.doctor_id,
-            "start_time": slot.start_time.isoformat(),
-            "end_time": slot.end_time.isoformat(),
-            "is_booked": slot.is_booked
+            "start_time": slot.start_time.isoformat(),  # Send UTC time to frontend
+            "end_time": slot.end_time.isoformat(),      # Send UTC time to frontend
+            "is_booked": slot.is_booked,
+            "is_past": is_past
         })
     return result
+
+@app.delete("/doctor/slots/all")
+def delete_all_slots(current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """Delete all unbooked slots for the current doctor"""
+    if current_user.role != "doctor":
+        raise HTTPException(status_code=403, detail="Only doctors can delete slots")
+    
+    # Only delete unbooked slots
+    deleted = db.query(database.Slot).filter(
+        database.Slot.doctor_id == current_user.id,
+        database.Slot.is_booked == False
+    ).delete(synchronize_session=False)
+    
+    db.commit()
+    
+    return {
+        "message": f"Deleted {deleted} unbooked slots",
+        "deleted": deleted
+    }
+
+@app.delete("/doctor/slots/bulk")
+def delete_multiple_slots(slot_ids: List[int], current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """Delete multiple slots at once"""
+    if current_user.role != "doctor":
+        raise HTTPException(status_code=403, detail="Only doctors can delete slots")
+    
+    deleted_count = 0
+    failed_count = 0
+    errors = []
+    
+    for slot_id in slot_ids:
+        slot = db.query(database.Slot).filter(
+            database.Slot.id == slot_id,
+            database.Slot.doctor_id == current_user.id
+        ).first()
+        
+        if not slot:
+            failed_count += 1
+            errors.append(f"Slot {slot_id} not found")
+            continue
+        
+        if slot.is_booked:
+            failed_count += 1
+            errors.append(f"Slot {slot_id} is booked and cannot be deleted")
+            continue
+        
+        db.delete(slot)
+        deleted_count += 1
+    
+    db.commit()
+    
+    return {
+        "message": f"Deleted {deleted_count} slots",
+        "deleted": deleted_count,
+        "failed": failed_count,
+        "errors": errors if errors else None
+    }
 
 @app.delete("/doctor/slots/{slot_id}")
 def delete_slot(slot_id: int, current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
@@ -296,18 +411,25 @@ def get_doctor_profile(doctor_id: int, db: Session = Depends(database.get_db)):
 
 @app.get("/doctors/{doctor_id}/slots")
 def get_doctor_slots(doctor_id: int, db: Session = Depends(database.get_db)):
+    """Get available slots for a doctor (only future slots that are not booked)"""
+    # Get current time in UTC for comparison
+    now_utc = datetime.utcnow()
+    
+    # Filter: not booked AND start time is in the future
     slots = db.query(database.Slot).filter(
         database.Slot.doctor_id == doctor_id, 
-        database.Slot.is_booked == False
-    ).all()
+        database.Slot.is_booked == False,
+        database.Slot.start_time > now_utc  # Only future slots
+    ).order_by(database.Slot.start_time).all()
     
     result = []
     for slot in slots:
+        # Return times as-is (UTC), frontend will handle local display
         result.append({
             "id": slot.id,
             "doctor_id": slot.doctor_id,
-            "start_time": slot.start_time.isoformat(),
-            "end_time": slot.end_time.isoformat(),
+            "start_time": slot.start_time.isoformat(),  # Send UTC time to frontend
+            "end_time": slot.end_time.isoformat(),      # Send UTC time to frontend
             "is_booked": slot.is_booked
         })
     return result
@@ -321,6 +443,11 @@ def book_appointment(appt: AppointmentCreate, background_tasks: BackgroundTasks,
     if not slot or slot.is_booked:
         raise HTTPException(status_code=400, detail="Slot unavailable")
     
+    # Check if slot is in the past (compare in UTC)
+    now_utc = datetime.utcnow()
+    if slot.start_time <= now_utc:
+        raise HTTPException(status_code=400, detail="Cannot book past time slots")
+    
     new_appt = database.Appointment(
         patient_id=current_user.id,
         doctor_id=appt.doctor_id,
@@ -332,7 +459,7 @@ def book_appointment(appt: AppointmentCreate, background_tasks: BackgroundTasks,
     db.commit()
 
     # AI Automation Trigger
-    background_tasks.add_task(send_ai_alert, current_user.email, f"Your {appt.appointment_type} appointment is booked for {slot.start_time}!")
+    background_tasks.add_task(send_ai_alert, current_user.email, f"Your {appt.appointment_type} appointment is booked for {slot.start_time.strftime('%I:%M %p, %d %b %Y')}!")
     
     return {"message": "Appointment booked successfully"}
 
@@ -637,11 +764,21 @@ def read_contact():
 
 @app.get("/calendar")
 def read_calendar():
-    return FileResponse("static/calendar.html")
+    from fastapi.responses import FileResponse
+    response = FileResponse("static/calendar.html")
+    # Force browser to reload (no cache)
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 @app.get("/services")
 def read_services():
     return FileResponse("static/services.html")
+
+@app.get("/test")
+def read_test():
+    return FileResponse("test_calendar.html")
 
 if __name__ == "__main__":
     import uvicorn

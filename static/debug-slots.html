@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Slots - Medipure</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .debug-box {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #1e88e5;
+        }
+        button {
+            background: #1e88e5;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1565c0;
+        }
+        .output {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success { color: #2e7d32; }
+        .error { color: #c62828; }
+        .warning { color: #f57c00; }
+        input, select {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            margin: 5px;
+            font-size: 16px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        th {
+            background: #1e88e5;
+            color: white;
+        }
+        tr:hover {
+            background: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Slot Debugging Tool</h1>
+    
+    <div class="debug-box">
+        <h2>1. Create Test Slot</h2>
+        <div>
+            <label>Date:</label>
+            <input type="date" id="testDate" value="2026-05-04">
+            
+            <label>Time:</label>
+            <input type="time" id="testTime" value="09:00">
+            
+            <label>Duration:</label>
+            <select id="testDuration">
+                <option value="15">15 min</option>
+                <option value="30" selected>30 min</option>
+                <option value="45">45 min</option>
+                <option value="60">60 min</option>
+            </select>
+            
+            <button onclick="createTestSlot()">Create Slot</button>
+        </div>
+        <div class="output" id="createOutput"></div>
+    </div>
+    
+    <div class="debug-box">
+        <h2>2. View All Slots</h2>
+        <button onclick="loadAllSlots()">Refresh Slots</button>
+        <button onclick="clearSlots()">Clear Display</button>
+        <div class="output" id="slotsOutput"></div>
+    </div>
+    
+    <div class="debug-box">
+        <h2>3. Check Specific Date</h2>
+        <div>
+            <label>Check Date:</label>
+            <input type="date" id="checkDate" value="2026-05-04">
+            <button onclick="checkDateSlots()">Check Slots</button>
+        </div>
+        <div class="output" id="checkOutput"></div>
+    </div>
+    
+    <div class="debug-box">
+        <h2>4. Delete All Slots</h2>
+        <button onclick="deleteAllSlots()" style="background: #c62828;">Delete All Unbooked Slots</button>
+        <div class="output" id="deleteOutput"></div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('Please login first!');
+            window.location.href = '/login';
+        }
+        
+        function log(elementId, message, type = 'info') {
+            const output = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : type === 'warning' ? 'warning' : '';
+            output.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+        }
+        
+        function clear(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+        
+        function formatLocalISO(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+        }
+        
+        async function createTestSlot() {
+            clear('createOutput');
+            log('createOutput', '=== CREATING TEST SLOT ===');
+            
+            const dateInput = document.getElementById('testDate').value;
+            const timeInput = document.getElementById('testTime').value;
+            const duration = parseInt(document.getElementById('testDuration').value);
+            
+            log('createOutput', `Date: ${dateInput}`);
+            log('createOutput', `Time: ${timeInput}`);
+            log('createOutput', `Duration: ${duration} minutes`);
+            
+            // Parse date and time
+            const [year, month, day] = dateInput.split('-').map(Number);
+            const [hours, minutes] = timeInput.split(':').map(Number);
+            
+            // Create date objects
+            const startDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+            const endDate = new Date(year, month - 1, day, hours, minutes + duration, 0, 0);
+            
+            const startISO = formatLocalISO(startDate);
+            const endISO = formatLocalISO(endDate);
+            
+            log('createOutput', `Start: ${startISO}`);
+            log('createOutput', `End: ${endISO}`);
+            log('createOutput', `Start Date Object: ${startDate.toString()}`);
+            
+            try {
+                log('createOutput', 'Sending POST request...');
+                
+                const response = await fetch('/doctor/slots', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        start_time: startISO,
+                        end_time: endISO
+                    })
+                });
+                
+                log('createOutput', `Response status: ${response.status}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('createOutput', `✅ SUCCESS: ${JSON.stringify(data)}`, 'success');
+                    
+                    // Verify by loading slots
+                    setTimeout(() => loadAllSlots(), 500);
+                } else {
+                    const error = await response.text();
+                    log('createOutput', `❌ ERROR: ${error}`, 'error');
+                }
+            } catch (error) {
+                log('createOutput', `❌ EXCEPTION: ${error.message}`, 'error');
+            }
+        }
+        
+        async function loadAllSlots() {
+            clear('slotsOutput');
+            log('slotsOutput', '=== LOADING ALL SLOTS ===');
+            
+            try {
+                const response = await fetch('/doctor/slots', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (response.ok) {
+                    const slots = await response.json();
+                    log('slotsOutput', `Total slots: ${slots.length}`, 'success');
+                    
+                    if (slots.length === 0) {
+                        log('slotsOutput', 'No slots found', 'warning');
+                        return;
+                    }
+                    
+                    // Group by date
+                    const byDate = {};
+                    slots.forEach(slot => {
+                        const date = slot.start_time.split('T')[0];
+                        if (!byDate[date]) byDate[date] = [];
+                        byDate[date].push(slot);
+                    });
+                    
+                    // Display
+                    let html = '<table><tr><th>Date</th><th>Time</th><th>Status</th><th>ID</th></tr>';
+                    Object.keys(byDate).sort().forEach(date => {
+                        byDate[date].forEach(slot => {
+                            const start = new Date(slot.start_time);
+                            const end = new Date(slot.end_time);
+                            const timeStr = `${start.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'})} - ${end.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'})}`;
+                            const status = slot.is_booked ? 'Booked' : slot.is_past ? 'Past' : 'Available';
+                            html += `<tr><td>${date}</td><td>${timeStr}</td><td>${status}</td><td>${slot.id}</td></tr>`;
+                        });
+                    });
+                    html += '</table>';
+                    
+                    document.getElementById('slotsOutput').innerHTML += html;
+                } else {
+                    log('slotsOutput', `❌ ERROR: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log('slotsOutput', `❌ EXCEPTION: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkDateSlots() {
+            clear('checkOutput');
+            const dateInput = document.getElementById('checkDate').value;
+            log('checkOutput', `=== CHECKING SLOTS FOR ${dateInput} ===`);
+            
+            try {
+                const response = await fetch('/doctor/slots', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (response.ok) {
+                    const slots = await response.json();
+                    const dateSlots = slots.filter(slot => slot.start_time.startsWith(dateInput));
+                    
+                    log('checkOutput', `Found ${dateSlots.length} slots for ${dateInput}`, dateSlots.length > 0 ? 'success' : 'warning');
+                    
+                    dateSlots.forEach(slot => {
+                        log('checkOutput', `  - ${slot.start_time} to ${slot.end_time} (ID: ${slot.id})`);
+                    });
+                    
+                    if (dateSlots.length === 0) {
+                        log('checkOutput', 'No slots found for this date', 'warning');
+                        log('checkOutput', 'All available dates:');
+                        const dates = [...new Set(slots.map(s => s.start_time.split('T')[0]))].sort();
+                        dates.forEach(d => log('checkOutput', `  - ${d}`));
+                    }
+                } else {
+                    log('checkOutput', `❌ ERROR: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log('checkOutput', `❌ EXCEPTION: ${error.message}`, 'error');
+            }
+        }
+        
+        async function deleteAllSlots() {
+            if (!confirm('Delete all unbooked slots?')) return;
+            
+            clear('deleteOutput');
+            log('deleteOutput', '=== DELETING ALL SLOTS ===');
+            
+            try {
+                const response = await fetch('/doctor/slots/all', {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('deleteOutput', `✅ Deleted ${data.deleted} slots`, 'success');
+                    setTimeout(() => loadAllSlots(), 500);
+                } else {
+                    const error = await response.text();
+                    log('deleteOutput', `❌ ERROR: ${error}`, 'error');
+                }
+            } catch (error) {
+                log('deleteOutput', `❌ EXCEPTION: ${error.message}`, 'error');
+            }
+        }
+        
+        function clearSlots() {
+            clear('slotsOutput');
+        }
+        
+        // Auto-load slots on page load
+        window.onload = () => {
+            loadAllSlots();
+        };
+    </script>
+</body>
+</html>

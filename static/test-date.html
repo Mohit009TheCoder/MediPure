@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Date Test - Medipure</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-box {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #1e88e5;
+        }
+        button {
+            background: #1e88e5;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #1565c0;
+        }
+        .output {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success {
+            color: #2e7d32;
+            font-weight: bold;
+        }
+        .error {
+            color: #c62828;
+            font-weight: bold;
+        }
+        input {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 16px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-box">
+        <h1>🧪 Date Booking Test</h1>
+        <p>This page tests the date booking functionality to diagnose the issue.</p>
+        
+        <div>
+            <label>Select Date:</label>
+            <input type="date" id="testDate" value="2026-05-03">
+        </div>
+        
+        <div>
+            <label>Select Time:</label>
+            <input type="time" id="testTime" value="10:15">
+        </div>
+        
+        <button onclick="testDateCreation()">Test Date Creation</button>
+        <button onclick="testSlotCreation()">Test Slot Creation (Real API)</button>
+        <button onclick="clearOutput()">Clear Output</button>
+        
+        <div class="output" id="output">Click a button to run tests...</div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        
+        function log(message, type = 'info') {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : '';
+            output.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+        }
+        
+        function clearOutput() {
+            document.getElementById('output').innerHTML = '';
+        }
+        
+        function formatLocalISO(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+        }
+        
+        function testDateCreation() {
+            clearOutput();
+            log('=== DATE CREATION TEST ===');
+            
+            const dateInput = document.getElementById('testDate').value;
+            const timeInput = document.getElementById('testTime').value;
+            
+            log(`Input Date: ${dateInput}`);
+            log(`Input Time: ${timeInput}`);
+            
+            // Parse date and time
+            const [year, month, day] = dateInput.split('-').map(Number);
+            const [hours, minutes] = timeInput.split(':').map(Number);
+            
+            log(`Parsed: Year=${year}, Month=${month}, Day=${day}, Hours=${hours}, Minutes=${minutes}`);
+            
+            // Create date object
+            const dateObj = new Date(year, month - 1, day, hours, minutes, 0, 0);
+            log(`Date Object: ${dateObj.toString()}`);
+            log(`Date Object (ISO): ${dateObj.toISOString()}`);
+            
+            // Test formatLocalISO
+            const localISO = formatLocalISO(dateObj);
+            log(`formatLocalISO: ${localISO}`, 'success');
+            
+            // Extract date from both
+            const isoDate = dateObj.toISOString().split('T')[0];
+            const localDate = localISO.split('T')[0];
+            
+            log(`ISO Date: ${isoDate}`);
+            log(`Local Date: ${localDate}`);
+            
+            if (isoDate === localDate) {
+                log('✅ Dates match! No timezone shift.', 'success');
+            } else {
+                log(`❌ DATE MISMATCH! ISO shows ${isoDate} but local shows ${localDate}`, 'error');
+                log(`This is the problem! toISOString() shifted the date.`, 'error');
+            }
+            
+            // Show timezone info
+            const offset = dateObj.getTimezoneOffset();
+            const offsetHours = Math.abs(offset / 60);
+            const offsetSign = offset > 0 ? '-' : '+';
+            log(`Your timezone offset: UTC${offsetSign}${offsetHours}`);
+        }
+        
+        async function testSlotCreation() {
+            if (!token) {
+                log('❌ Not logged in! Please login first.', 'error');
+                return;
+            }
+            
+            clearOutput();
+            log('=== REAL SLOT CREATION TEST ===');
+            
+            const dateInput = document.getElementById('testDate').value;
+            const timeInput = document.getElementById('testTime').value;
+            
+            log(`Creating slot for: ${dateInput} at ${timeInput}`);
+            
+            // Parse date and time
+            const [year, month, day] = dateInput.split('-').map(Number);
+            const [hours, minutes] = timeInput.split(':').map(Number);
+            
+            // Create date objects
+            const startDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+            const endDate = new Date(year, month - 1, day, hours, minutes + 30, 0, 0);
+            
+            const startISO = formatLocalISO(startDate);
+            const endISO = formatLocalISO(endDate);
+            
+            log(`Start: ${startISO}`);
+            log(`End: ${endISO}`);
+            
+            try {
+                log('Sending request to /doctor/slots...');
+                
+                const response = await fetch('/doctor/slots', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        start_time: startISO,
+                        end_time: endISO
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('✅ Slot created successfully!', 'success');
+                    log(`Response: ${JSON.stringify(data)}`);
+                    
+                    // Now fetch slots to verify
+                    log('Fetching slots to verify...');
+                    const slotsResponse = await fetch('/doctor/slots', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    
+                    if (slotsResponse.ok) {
+                        const slots = await slotsResponse.json();
+                        log(`Total slots: ${slots.length}`);
+                        
+                        // Find the slot we just created
+                        const expectedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        const matchingSlots = slots.filter(s => s.start_time.startsWith(expectedDate));
+                        
+                        log(`Slots on ${expectedDate}: ${matchingSlots.length}`);
+                        
+                        if (matchingSlots.length > 0) {
+                            log('✅ Slot found on correct date!', 'success');
+                            matchingSlots.forEach(slot => {
+                                log(`  - ${slot.start_time} to ${slot.end_time}`);
+                            });
+                        } else {
+                            log('❌ Slot NOT found on expected date!', 'error');
+                            log('All slots:', 'error');
+                            slots.forEach(slot => {
+                                log(`  - ${slot.start_time} to ${slot.end_time}`);
+                            });
+                        }
+                    }
+                } else {
+                    const error = await response.json();
+                    log(`❌ Error: ${JSON.stringify(error)}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Exception: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
