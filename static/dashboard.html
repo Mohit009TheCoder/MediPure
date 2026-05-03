@@ -1364,7 +1364,10 @@
             document.getElementById('contentBody').innerHTML = `
                 <div class="search-section">
                     <h3 style="margin-bottom: 15px;">Describe Your Symptoms</h3>
-                    <textarea id="symptoms" style="width: 100%; min-height: 120px; padding: 14px 16px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 1rem; font-family: inherit; background: #f8f9fa;" placeholder="e.g., I have a persistent cough and mild fever..."></textarea>
+                    <p style="color: #6c757d; margin-bottom: 15px; font-size: 0.95rem;">
+                        Tell us what you're experiencing. Be as detailed as possible for better recommendations.
+                    </p>
+                    <textarea id="symptoms" style="width: 100%; min-height: 120px; padding: 14px 16px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 1rem; font-family: inherit; background: #f8f9fa;" placeholder="Example: I have pain in my back and hand for the past 3 days. The pain gets worse when I move."></textarea>
                     <button class="btn btn-primary" onclick="analyzeSymptoms()" style="margin-top: 15px;">
                         <i class="fas fa-brain"></i> Analyze Symptoms
                     </button>
@@ -1383,29 +1386,211 @@
                 return;
             }
             
-            results.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Analyzing...</p></div>';
+            results.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Analyzing your symptoms...</p></div>';
             
             setTimeout(() => {
-                let suggestion = "General Physician";
-                if (symptoms.includes('heart') || symptoms.includes('chest')) suggestion = "Cardiologist";
-                if (symptoms.includes('brain') || symptoms.includes('headache')) suggestion = "Neurologist";
-                if (symptoms.includes('skin') || symptoms.includes('rash')) suggestion = "Dermatologist";
+                const analysis = getSpecialtyRecommendation(symptoms);
                 
                 results.innerHTML = `
-                    <div class="appointment-card" style="border-left-color: #4caf50;">
+                    <div class="appointment-card" style="border-left-color: ${analysis.color};">
                         <div class="appointment-header">
                             <div>
-                                <div class="appointment-doctor"><i class="fas fa-check-circle" style="color: #4caf50;"></i> AI Recommendation</div>
-                                <div class="appointment-specialty">Based on your symptoms</div>
+                                <div class="appointment-doctor">
+                                    <i class="fas ${analysis.icon}" style="color: ${analysis.color};"></i> 
+                                    AI Recommendation
+                                </div>
+                                <div class="appointment-specialty">Based on your symptoms analysis</div>
                             </div>
                         </div>
-                        <p style="margin: 15px 0;">We recommend consulting a <strong>${suggestion}</strong>.</p>
-                        <button class="btn btn-primary" onclick="searchForSpecialty('${suggestion}')">
-                            <i class="fas fa-search"></i> Find ${suggestion}s
+                        <div style="margin: 15px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                            <p style="margin-bottom: 10px;"><strong>Detected Symptoms:</strong></p>
+                            <p style="color: #6c757d; margin-bottom: 15px;">${analysis.detectedSymptoms}</p>
+                            <p style="margin-bottom: 5px;"><strong>Recommended Specialist:</strong></p>
+                            <p style="font-size: 1.3rem; color: ${analysis.color}; font-weight: 600; margin-bottom: 10px;">
+                                ${analysis.specialty}
+                            </p>
+                            <p style="color: #6c757d; font-size: 0.95rem;">${analysis.reason}</p>
+                        </div>
+                        ${analysis.urgency ? `
+                            <div style="padding: 12px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 8px; margin: 15px 0;">
+                                <strong style="color: #856404;">⚠️ Note:</strong>
+                                <p style="color: #856404; margin: 5px 0 0 0; font-size: 0.95rem;">${analysis.urgency}</p>
+                            </div>
+                        ` : ''}
+                        <button class="btn btn-primary" onclick="searchForSpecialty('${analysis.specialty}')" style="margin-top: 10px;">
+                            <i class="fas fa-search"></i> Find ${analysis.specialty}s
                         </button>
                     </div>
                 `;
             }, 1500);
+        }
+
+        // Enhanced Symptom Analysis System
+        function getSpecialtyRecommendation(symptoms) {
+            // Comprehensive symptom-to-specialty mapping
+            const specialtyRules = [
+                // Cardiology - Heart & Chest
+                {
+                    keywords: ['heart', 'chest pain', 'palpitation', 'irregular heartbeat', 'shortness of breath', 'angina', 'cardiac'],
+                    specialty: 'Cardiologist',
+                    reason: 'Heart and cardiovascular symptoms require specialized cardiac evaluation.',
+                    color: '#e74c3c',
+                    icon: 'fa-heartbeat',
+                    urgency: 'If experiencing severe chest pain, call emergency services immediately.'
+                },
+                
+                // Neurology - Brain & Nervous System
+                {
+                    keywords: ['severe headache', 'migraine', 'seizure', 'numbness', 'tingling', 'dizziness', 'vertigo', 'memory loss', 'tremor', 'paralysis'],
+                    specialty: 'Neurologist',
+                    reason: 'Neurological symptoms affecting the brain and nervous system need specialized care.',
+                    color: '#9b59b6',
+                    icon: 'fa-brain'
+                },
+                
+                // Dermatology - Skin
+                {
+                    keywords: ['skin rash', 'acne', 'eczema', 'psoriasis', 'mole', 'skin lesion', 'itching', 'hives', 'skin infection'],
+                    specialty: 'Dermatologist',
+                    reason: 'Skin conditions are best evaluated by a dermatology specialist.',
+                    color: '#f39c12',
+                    icon: 'fa-hand-sparkles'
+                },
+                
+                // Orthopedics - Bones & Joints (Specific)
+                {
+                    keywords: ['fracture', 'broken bone', 'joint dislocation', 'severe joint pain', 'arthritis', 'sports injury', 'ligament tear', 'sprain'],
+                    specialty: 'Orthopedic Surgeon',
+                    reason: 'Bone, joint, and musculoskeletal injuries require orthopedic expertise.',
+                    color: '#3498db',
+                    icon: 'fa-bone'
+                },
+                
+                // ENT - Ear, Nose, Throat
+                {
+                    keywords: ['ear pain', 'hearing loss', 'tinnitus', 'sinus', 'nasal congestion', 'sore throat', 'tonsillitis', 'voice problem'],
+                    specialty: 'ENT Specialist',
+                    reason: 'Ear, nose, and throat issues need specialized ENT evaluation.',
+                    color: '#1abc9c',
+                    icon: 'fa-head-side-cough'
+                },
+                
+                // Ophthalmology - Eyes
+                {
+                    keywords: ['eye pain', 'vision problem', 'blurred vision', 'eye infection', 'conjunctivitis', 'cataract', 'glaucoma'],
+                    specialty: 'Ophthalmologist',
+                    reason: 'Eye and vision problems require specialized ophthalmologic care.',
+                    color: '#16a085',
+                    icon: 'fa-eye'
+                },
+                
+                // Gastroenterology - Digestive System
+                {
+                    keywords: ['stomach pain', 'abdominal pain', 'diarrhea', 'constipation', 'nausea', 'vomiting', 'acid reflux', 'ulcer', 'ibs'],
+                    specialty: 'Gastroenterologist',
+                    reason: 'Digestive system issues benefit from gastroenterology expertise.',
+                    color: '#e67e22',
+                    icon: 'fa-stomach'
+                },
+                
+                // Pulmonology - Respiratory
+                {
+                    keywords: ['breathing difficulty', 'asthma', 'chronic cough', 'wheezing', 'bronchitis', 'pneumonia', 'lung'],
+                    specialty: 'Pulmonologist',
+                    reason: 'Respiratory and lung conditions require pulmonology specialist care.',
+                    color: '#3498db',
+                    icon: 'fa-lungs'
+                },
+                
+                // Endocrinology - Hormones & Diabetes
+                {
+                    keywords: ['diabetes', 'thyroid', 'hormone imbalance', 'excessive thirst', 'frequent urination', 'weight gain', 'weight loss'],
+                    specialty: 'Endocrinologist',
+                    reason: 'Hormonal and metabolic disorders need endocrinology specialist evaluation.',
+                    color: '#9b59b6',
+                    icon: 'fa-syringe'
+                },
+                
+                // Gynecology - Women's Health
+                {
+                    keywords: ['menstrual', 'period pain', 'pregnancy', 'pelvic pain', 'vaginal', 'ovarian', 'uterine'],
+                    specialty: 'Gynecologist',
+                    reason: 'Women\'s reproductive health issues require gynecological care.',
+                    color: '#e91e63',
+                    icon: 'fa-venus'
+                },
+                
+                // Urology - Urinary System
+                {
+                    keywords: ['urinary', 'kidney pain', 'bladder', 'prostate', 'painful urination', 'blood in urine'],
+                    specialty: 'Urologist',
+                    reason: 'Urinary system and kidney issues need urological specialist care.',
+                    color: '#00bcd4',
+                    icon: 'fa-kidneys'
+                },
+                
+                // Psychiatry - Mental Health
+                {
+                    keywords: ['depression', 'anxiety', 'panic attack', 'mental health', 'stress', 'insomnia', 'mood swing'],
+                    specialty: 'Psychiatrist',
+                    reason: 'Mental health concerns benefit from psychiatric evaluation and care.',
+                    color: '#673ab7',
+                    icon: 'fa-brain'
+                }
+            ];
+            
+            // Check for specialty-specific symptoms
+            for (const rule of specialtyRules) {
+                for (const keyword of rule.keywords) {
+                    if (symptoms.includes(keyword)) {
+                        return {
+                            specialty: rule.specialty,
+                            reason: rule.reason,
+                            color: rule.color,
+                            icon: rule.icon,
+                            urgency: rule.urgency || null,
+                            detectedSymptoms: extractSymptoms(symptoms)
+                        };
+                    }
+                }
+            }
+            
+            // Default to General Physician for common symptoms
+            return {
+                specialty: 'General Physician',
+                reason: 'A General Physician can evaluate your symptoms and provide initial treatment or refer you to a specialist if needed.',
+                color: '#4caf50',
+                icon: 'fa-user-md',
+                urgency: null,
+                detectedSymptoms: extractSymptoms(symptoms)
+            };
+        }
+
+        // Extract and format symptoms from input
+        function extractSymptoms(text) {
+            // Clean up the text
+            const cleaned = text.trim();
+            
+            // Common symptom keywords to highlight
+            const symptomKeywords = [
+                'pain', 'ache', 'fever', 'cough', 'cold', 'headache', 'nausea', 
+                'vomiting', 'diarrhea', 'fatigue', 'weakness', 'dizziness', 
+                'swelling', 'rash', 'itching', 'bleeding', 'infection'
+            ];
+            
+            // Find mentioned symptoms
+            const foundSymptoms = [];
+            for (const keyword of symptomKeywords) {
+                if (cleaned.includes(keyword)) {
+                    foundSymptoms.push(keyword);
+                }
+            }
+            
+            if (foundSymptoms.length > 0) {
+                return `${cleaned.charAt(0).toUpperCase() + cleaned.slice(1)} (Detected: ${foundSymptoms.join(', ')})`;
+            }
+            
+            return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
         }
 
         // Search for Specialty
