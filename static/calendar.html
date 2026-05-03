@@ -1201,24 +1201,27 @@
         }
 
         function addMinutes(hour, minute, period, minutesToAdd) {
-            let totalMinutes = minute + minutesToAdd;
-            let newHour = hour;
-            let newPeriod = period;
-            
-            if (totalMinutes >= 60) {
-                newHour += Math.floor(totalMinutes / 60);
-                totalMinutes = totalMinutes % 60;
+            // Convert to 24-hour format for calculation
+            let hour24 = hour;
+            if (period === 'PM' && hour !== 12) {
+                hour24 = hour + 12;
+            } else if (period === 'AM' && hour === 12) {
+                hour24 = 0;
             }
             
-            if (newHour > 12) {
-                newHour = newHour - 12;
-            }
+            // Add minutes
+            let totalMinutes = hour24 * 60 + minute + minutesToAdd;
             
-            if (newHour === 12 && minute + minutesToAdd >= 60) {
-                newPeriod = period === 'AM' ? 'PM' : 'AM';
-            }
+            // Calculate new hour and minute
+            let newHour24 = Math.floor(totalMinutes / 60) % 24;
+            let newMinute = totalMinutes % 60;
             
-            return `${newHour.toString().padStart(2, '0')}:${totalMinutes.toString().padStart(2, '0')} ${newPeriod}`;
+            // Convert back to 12-hour format
+            let newPeriod = newHour24 >= 12 ? 'PM' : 'AM';
+            let newHour12 = newHour24 % 12;
+            if (newHour12 === 0) newHour12 = 12;
+            
+            return `${newHour12.toString().padStart(2, '0')}:${newMinute.toString().padStart(2, '0')} ${newPeriod}`;
         }
 
         // Template Functions
