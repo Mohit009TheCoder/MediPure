@@ -466,9 +466,49 @@ def update_appointment_status(
     if appointment.payment_status != "paid":
         raise HTTPException(status_code=400, detail="Cannot update status of unpaid appointment")
     
+    # Check if already completed (prevent double-counting)
+    if appointment.status == "completed":
+        raise HTTPException(status_code=400, detail="Appointment already marked as completed")
+    
     # Update status
     old_status = appointment.status
     appointment.status = status_update.status
+    
+    # If marking as completed, add money to doctor's earnings
+    if status_update.status == "completed" and old_status != "completed":
+        # Get or create doctor earnings record
+        earnings = db.query(database.DoctorEarnings).filter(
+            database.DoctorEarnings.doctor_id == current_user.id
+        ).first()
+        
+        if not earnings:
+            earnings = database.DoctorEarnings(
+                doctor_id=current_user.id,
+                total_consultations=0,
+                total_revenue=0,
+                total_earnings=0,
+                pending_amount=0,
+                withdrawn_amount=0,
+                platform_fees_paid=0,
+                withdrawals_today=0,
+                penalty_fees_collected=0
+            )
+            db.add(earnings)
+        
+        # Get consultation fee from payment receipt
+        receipt = db.query(database.PaymentReceipt).filter(
+            database.PaymentReceipt.appointment_id == appointment.id
+        ).first()
+        
+        if receipt:
+            consultation_fee = receipt.consultation_fee  # Amount in paise
+            
+            # Add to doctor's earnings (full amount, fee deducted at withdrawal)
+            earnings.total_consultations += 1
+            earnings.total_revenue += consultation_fee
+            earnings.total_earnings += consultation_fee
+            earnings.pending_amount += consultation_fee
+            earnings.last_updated = datetime.utcnow()
     
     db.commit()
     
@@ -477,7 +517,8 @@ def update_appointment_status(
         "message": f"Appointment marked as {status_update.status}",
         "appointment_id": appointment.id,
         "old_status": old_status,
-        "new_status": appointment.status
+        "new_status": appointment.status,
+        "earnings_updated": status_update.status == "completed"
     }
 
 # Patient Endpoints
@@ -823,7 +864,8 @@ def get_receipt(receipt_id: int, current_user: database.User = Depends(auth.get_
     
     # Convert UTC times to IST for display
     receipt_date_ist = utc_to_ist(receipt.receipt_date) if receipt.receipt_date else None
-    appointment_date_ist = utc_to_ist(receipt.appointment_date) if receipt.appointment_date else None
+    # appointment_date is already in IST (from slot.start_time), no conversion needed
+    appointment_date_ist = receipt.appointment_date
     
     return {
         "receipt_id": receipt.id,
@@ -879,7 +921,8 @@ def get_receipt_by_appointment(appointment_id: int, current_user: database.User 
     
     # Convert UTC times to IST for display
     receipt_date_ist = utc_to_ist(receipt.receipt_date) if receipt.receipt_date else None
-    appointment_date_ist = utc_to_ist(receipt.appointment_date) if receipt.appointment_date else None
+    # appointment_date is already in IST (from slot.start_time), no conversion needed
+    appointment_date_ist = receipt.appointment_date
     
     return {
         "receipt_id": receipt.id,
@@ -1497,6 +1540,8 @@ def get_admin_stats(current_user: database.User = Depends(auth.get_current_user)
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
+    from sqlalchemy import func
+    
     total_doctors = db.query(database.User).filter(database.User.role == "doctor").count()
     total_patients = db.query(database.User).filter(database.User.role == "patient").count()
     total_appointments = db.query(database.Appointment).count()
@@ -1511,23 +1556,27 @@ def get_admin_stats(current_user: database.User = Depends(auth.get_current_user)
         database.Slot.start_time < today_end
     ).count()
     
-    # Calculate revenue (sum of consultation fees from completed appointments)
-    completed_appointments = db.query(database.Appointment).filter(
-        database.Appointment.status == "completed"
-    ).all()
+    # Calculate total revenue from payment receipts (actual payments received)
+    total_revenue = db.query(func.sum(database.PaymentReceipt.consultation_fee)).scalar() or 0
     
-    total_revenue = 0
-    for appt in completed_appointments:
-        doctor = db.query(database.User).filter(database.User.id == appt.doctor_id).first()
-        if doctor and doctor.consultation_fee:
-            total_revenue += doctor.consultation_fee
+    # Calculate platform fees collected from withdrawals
+    total_platform_fees = db.query(func.sum(database.DoctorEarnings.platform_fees_paid)).scalar() or 0
+    
+    # Calculate pending platform fees (from pending doctor earnings)
+    total_pending_earnings = db.query(func.sum(database.DoctorEarnings.pending_amount)).scalar() or 0
+    
+    # Calculate total withdrawn by doctors
+    total_withdrawn = db.query(func.sum(database.DoctorEarnings.withdrawn_amount)).scalar() or 0
     
     return {
         "total_doctors": total_doctors,
         "total_patients": total_patients,
         "total_appointments": total_appointments,
         "appointments_today": appointments_today,
-        "total_revenue": total_revenue,
+        "total_revenue": total_revenue,  # Total payments received from patients
+        "platform_fees_collected": total_platform_fees,  # Platform fees collected from withdrawals
+        "pending_doctor_earnings": total_pending_earnings,  # Money waiting to be withdrawn
+        "total_withdrawn": total_withdrawn,  # Money paid to doctors
         "scheduled_appointments": db.query(database.Appointment).filter(database.Appointment.status == "scheduled").count(),
         "completed_appointments": db.query(database.Appointment).filter(database.Appointment.status == "completed").count(),
         "cancelled_appointments": db.query(database.Appointment).filter(database.Appointment.status == "cancelled").count()

@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Availability - Medipure</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/loader.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="/static/loader.js"></script>
     <style>
         * {
             margin: 0;
@@ -1194,6 +1196,8 @@
                     document.getElementById('endTime').value = endTime;
                 } else {
                     document.getElementById('endTime').value = timeStr;
+                    // Auto-calculate duration based on start and end times
+                    autoCalculateDuration();
                 }
                 updateSlotPreviewInfo();
             }
@@ -1815,6 +1819,52 @@
             document.getElementById('previewStartTime').textContent = startTimeStr;
             document.getElementById('previewEndTime').textContent = endTimeStr;
             document.getElementById('previewDuration').textContent = duration;
+        }
+
+        // Auto-calculate duration based on start and end times
+        function autoCalculateDuration() {
+            const startTimeStr = document.getElementById('startTime').value;
+            const endTimeStr = document.getElementById('endTime').value;
+            
+            if (!startTimeStr || !endTimeStr) return;
+            
+            // Parse times
+            const [startHour, startMin] = parseTimeString(startTimeStr);
+            const [endHour, endMin] = parseTimeString(endTimeStr);
+            
+            // Calculate total minutes
+            const startTotalMin = startHour * 60 + startMin;
+            const endTotalMin = endHour * 60 + endMin;
+            const durationMinutes = endTotalMin - startTotalMin;
+            
+            if (durationMinutes > 0) {
+                // Find the closest standard duration or set exact duration
+                const durationSelect = document.getElementById('slotDuration');
+                const standardDurations = [15, 30, 45, 60];
+                
+                // Check if it matches a standard duration
+                if (standardDurations.includes(durationMinutes)) {
+                    durationSelect.value = durationMinutes;
+                } else {
+                    // Add custom duration option if not exists
+                    let optionExists = false;
+                    for (let option of durationSelect.options) {
+                        if (parseInt(option.value) === durationMinutes) {
+                            optionExists = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!optionExists) {
+                        const newOption = document.createElement('option');
+                        newOption.value = durationMinutes;
+                        newOption.textContent = `${durationMinutes} minutes`;
+                        durationSelect.appendChild(newOption);
+                    }
+                    
+                    durationSelect.value = durationMinutes;
+                }
+            }
         }
 
         // Generate slots for the selected day
