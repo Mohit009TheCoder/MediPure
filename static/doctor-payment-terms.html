@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Terms & Conditions - Medipure</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/index.css">
+    <link rel="stylesheet" href="/static/footer-styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        .terms-card {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            border: 1px solid #e9ecef;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 30px;
+            border-bottom: 3px solid #1e88e5;
+        }
+
+        .header h1 {
+            color: #1e88e5;
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+
+        .section {
+            margin-bottom: 35px;
+        }
+
+        .section h2 {
+            color: #212529;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section h2 i {
+            color: #1e88e5;
+        }
+
+        .section h3 {
+            color: #495057;
+            font-size: 1.2rem;
+            margin: 20px 0 10px 0;
+        }
+
+        .section p {
+            color: #6c757d;
+            margin-bottom: 15px;
+        }
+
+        .section ul, .section ol {
+            margin-left: 25px;
+            color: #6c757d;
+        }
+
+        .section li {
+            margin-bottom: 10px;
+        }
+
+        .highlight-box {
+            background: #e3f2fd;
+            border-left: 4px solid #1e88e5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .highlight-box.warning {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+        }
+
+        .highlight-box.success {
+            background: #e8f5e9;
+            border-left-color: #4caf50;
+        }
+
+        .highlight-box.danger {
+            background: #ffebee;
+            border-left-color: #f44336;
+        }
+
+        .highlight-box h4 {
+            color: #212529;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .fee-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .fee-table th {
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .fee-table td {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .fee-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .fee-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .example-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 2px dashed #dee2e6;
+        }
+
+        .example-box h4 {
+            color: #1e88e5;
+            margin-bottom: 15px;
+        }
+
+        .calculation {
+            font-family: 'Courier New', monospace;
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border-left: 3px solid #1e88e5;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(30, 136, 229, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(30, 136, 229, 0.4);
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #1e88e5;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            gap: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .terms-card {
+                padding: 25px;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .section h2 {
+                font-size: 1.3rem;
+            }
+
+            .fee-table {
+                font-size: 0.9rem;
+            }
+
+            .fee-table th, .fee-table td {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/dashboard" class="back-link">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+
+        <div class="terms-card">
+            <div class="header">
+                <h1><i class="fas fa-file-contract"></i> Payment Terms & Conditions</h1>
+                <p>For Doctors on Medipure Platform</p>
+            </div>
+
+            <!-- Introduction -->
+            <div class="section">
+                <h2><i class="fas fa-info-circle"></i> Introduction</h2>
+                <p>
+                    Welcome to Medipure's payment system. As a registered doctor on our platform, you agree to the following 
+                    terms and conditions regarding earnings, withdrawals, and platform fees. Please read carefully before 
+                    requesting any withdrawals.
+                </p>
+            </div>
+
+            <!-- Earnings Structure -->
+            <div class="section">
+                <h2><i class="fas fa-rupee-sign"></i> Earnings Structure</h2>
+                
+                <h3>1. Consultation Fees</h3>
+                <p>
+                    When a patient books an appointment and completes payment, <strong>100% of the consultation fee</strong> 
+                    is credited to your account immediately. No platform fee is deducted at this stage.
+                </p>
+
+                <div class="highlight-box success">
+                    <h4><i class="fas fa-check-circle"></i> Example</h4>
+                    <p>Patient pays ₹500 → Your balance increases by ₹500 (full amount)</p>
+                </div>
+
+                <h3>2. Platform Fees</h3>
+                <p>
+                    Platform fees are deducted <strong>only when you request a withdrawal</strong>, not when you receive payments. 
+                    The fee percentage depends on how many withdrawals you've made on that day.
+                </p>
+            </div>
+
+            <!-- Fee Structure -->
+            <div class="section">
+                <h2><i class="fas fa-percentage"></i> Platform Fee Structure</h2>
+                
+                <table class="fee-table">
+                    <thead>
+                        <tr>
+                            <th>Withdrawal Number (Per Day)</th>
+                            <th>Platform Fee</th>
+                            <th>You Receive</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>1st Withdrawal</strong></td>
+                            <td>10%</td>
+                            <td>90%</td>
+                            <td><span style="color: #4caf50;">✓ Normal</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>2nd Withdrawal</strong></td>
+                            <td>10%</td>
+                            <td>90%</td>
+                            <td><span style="color: #4caf50;">✓ Normal</span></td>
+                        </tr>
+                        <tr style="background: #fff3cd;">
+                            <td><strong>3rd+ Withdrawal</strong></td>
+                            <td><strong>15%</strong></td>
+                            <td><strong>85%</strong></td>
+                            <td><span style="color: #ff9800;">⚠ Penalty Applied</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="highlight-box warning">
+                    <h4><i class="fas fa-exclamation-triangle"></i> Important Note</h4>
+                    <p>
+                        The withdrawal count resets daily at midnight IST. To minimize fees, we recommend consolidating 
+                        your withdrawals into 1-2 requests per day instead of multiple small withdrawals.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Examples -->
+            <div class="section">
+                <h2><i class="fas fa-calculator"></i> Calculation Examples</h2>
+
+                <div class="example-box">
+                    <h4>Example 1: Single Withdrawal (10% fee)</h4>
+                    <p>You completed 4 consultations @ ₹500 each = ₹2,000 balance</p>
+                    <div class="calculation">
+                        Gross Amount: ₹2,000<br>
+                        Platform Fee (10%): ₹200<br>
+                        <strong>Net Amount You Receive: ₹1,800</strong>
+                    </div>
+                </div>
+
+                <div class="example-box">
+                    <h4>Example 2: Multiple Withdrawals Same Day</h4>
+                    <p>You have ₹3,000 balance and make 3 withdrawals:</p>
+                    <div class="calculation">
+                        <strong>1st Withdrawal:</strong> ₹1,000 - 10% = ₹900 ✓<br>
+                        <strong>2nd Withdrawal:</strong> ₹1,000 - 10% = ₹900 ✓<br>
+                        <strong>3rd Withdrawal:</strong> ₹1,000 - 15% = ₹850 ⚠<br>
+                        <hr style="margin: 10px 0; border: 1px solid #dee2e6;">
+                        Total Fees: ₹350<br>
+                        <strong>Total You Receive: ₹2,650</strong>
+                    </div>
+                    <p style="color: #ff9800; margin-top: 10px;">
+                        <i class="fas fa-info-circle"></i> You could have saved ₹50 by making just 1 withdrawal of ₹3,000 (10% fee = ₹300)
+                    </p>
+                </div>
+            </div>
+
+            <!-- Withdrawal Process -->
+            <div class="section">
+                <h2><i class="fas fa-exchange-alt"></i> Withdrawal Process</h2>
+
+                <h3>Step 1: Request Withdrawal</h3>
+                <p>
+                    You submit a withdrawal request with your bank details. The system automatically calculates the 
+                    platform fee based on your withdrawal count for the day.
+                </p>
+
+                <h3>Step 2: Admin Review</h3>
+                <p>
+                    All withdrawal requests are manually reviewed by our admin team. They verify:
+                </p>
+                <ul>
+                    <li>Your available balance is sufficient</li>
+                    <li>Bank account details are correct</li>
+                    <li>No suspicious activity</li>
+                </ul>
+
+                <h3>Step 3: Approval</h3>
+                <p>
+                    Once approved, the gross amount is deducted from your balance, and the platform fee is calculated. 
+                    Your withdrawal moves to "Approved" status.
+                </p>
+
+                <h3>Step 4: Payment Processing</h3>
+                <p>
+                    Admin initiates the bank transfer for the net amount (after platform fee). Processing time: 
+                    <strong>3-5 business days</strong>.
+                </p>
+
+                <h3>Step 5: Completion</h3>
+                <p>
+                    Once the bank transfer is confirmed, your withdrawal is marked as "Completed" with a transaction ID.
+                </p>
+            </div>
+
+            <!-- Important Terms -->
+            <div class="section">
+                <h2><i class="fas fa-gavel"></i> Important Terms</h2>
+
+                <div class="highlight-box">
+                    <h4>1. Minimum Withdrawal Amount</h4>
+                    <p>The minimum amount you can withdraw is <strong>₹100</strong>.</p>
+                </div>
+
+                <div class="highlight-box">
+                    <h4>2. Balance Deduction</h4>
+                    <p>
+                        Your balance is deducted <strong>only after admin approval</strong>, not when you submit the request. 
+                        This means you can cancel or modify your request before approval.
+                    </p>
+                </div>
+
+                <div class="highlight-box warning">
+                    <h4>3. Penalty Fee Policy</h4>
+                    <p>
+                        To encourage responsible withdrawal practices and reduce processing overhead, we apply a 15% fee 
+                        (instead of 10%) on the 3rd and subsequent withdrawals made on the same day. This extra 5% is 
+                        retained by the platform.
+                    </p>
+                </div>
+
+                <div class="highlight-box">
+                    <h4>4. Processing Time</h4>
+                    <p>
+                        Withdrawals are processed within <strong>3-5 business days</strong> after admin approval. 
+                        Weekends and public holidays may extend this timeline.
+                    </p>
+                </div>
+
+                <div class="highlight-box danger">
+                    <h4>5. Failed Withdrawals</h4>
+                    <p>
+                        If a withdrawal fails (e.g., incorrect bank details), the gross amount is automatically refunded 
+                        to your balance, and you can request again with corrected information.
+                    </p>
+                </div>
+
+                <div class="highlight-box">
+                    <h4>6. Read-Only Access</h4>
+                    <p>
+                        As a doctor, you can view your earnings and withdrawal history but cannot approve or process 
+                        payments yourself. All approvals are handled by admin for security and compliance.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Best Practices -->
+            <div class="section">
+                <h2><i class="fas fa-lightbulb"></i> Best Practices</h2>
+                <ol>
+                    <li><strong>Consolidate Withdrawals:</strong> Request larger amounts less frequently to minimize fees (10% vs 15%)</li>
+                    <li><strong>Verify Bank Details:</strong> Double-check your account number and IFSC code to avoid failed transfers</li>
+                    <li><strong>Plan Ahead:</strong> Account for 3-5 business days processing time when planning withdrawals</li>
+                    <li><strong>Monitor Balance:</strong> Keep track of your pending balance before requesting withdrawals</li>
+                    <li><strong>Avoid Multiple Requests:</strong> Making 3+ withdrawal requests in one day incurs penalty fees</li>
+                </ol>
+            </div>
+
+            <!-- Rights and Responsibilities -->
+            <div class="section">
+                <h2><i class="fas fa-balance-scale"></i> Rights & Responsibilities</h2>
+
+                <h3>Your Rights:</h3>
+                <ul>
+                    <li>View your complete earnings and transaction history</li>
+                    <li>Request withdrawals at any time (subject to minimum amount)</li>
+                    <li>Receive transparent fee calculations before confirming</li>
+                    <li>Get refunds for failed withdrawals</li>
+                    <li>Contact support for any payment-related queries</li>
+                </ul>
+
+                <h3>Your Responsibilities:</h3>
+                <ul>
+                    <li>Provide accurate bank account information</li>
+                    <li>Maintain sufficient balance for requested withdrawals</li>
+                    <li>Comply with platform fee structure</li>
+                    <li>Report any discrepancies within 7 days</li>
+                    <li>Keep your account information updated</li>
+                </ul>
+            </div>
+
+            <!-- Contact -->
+            <div class="section">
+                <h2><i class="fas fa-headset"></i> Support</h2>
+                <p>
+                    If you have any questions about the payment terms or need assistance with withdrawals, please contact 
+                    our support team:
+                </p>
+                <div class="highlight-box">
+                    <p>
+                        <strong>Email:</strong> payments@medipure.com<br>
+                        <strong>Phone:</strong> +91 1800-123-4567<br>
+                        <strong>Hours:</strong> Monday - Saturday, 9:00 AM - 6:00 PM IST
+                    </p>
+                </div>
+            </div>
+
+            <!-- Agreement -->
+            <div class="section">
+                <div class="highlight-box" style="background: #e3f2fd; border-left-color: #1e88e5;">
+                    <h4><i class="fas fa-check-circle"></i> Agreement</h4>
+                    <p>
+                        By requesting a withdrawal, you acknowledge that you have read, understood, and agree to these 
+                        payment terms and conditions. You accept the platform fee structure and withdrawal process as 
+                        outlined above.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 2px solid #e9ecef;">
+                <a href="/dashboard" class="btn btn-primary">
+                    <i class="fas fa-check"></i> I Understand & Agree
+                </a>
+            </div>
+
+            <!-- Last Updated -->
+            <div style="text-align: center; margin-top: 30px; color: #6c757d; font-size: 0.9rem;">
+                <p>Last Updated: May 4, 2026</p>
+                <p>Version 1.0</p>
+            </div>
+        </div>
+    </div>
+
+    <footer style="background: #212529; color: white; margin-top: 80px;">
+        <div class="container" style="max-width: 900px; margin: 0 auto; padding: 40px 20px 20px;">
+            <div style="text-align: center; padding: 20px 0; border-top: 1px solid #495057;">
+                <p style="color: #adb5bd; margin: 0;">© 2026 Medipure. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

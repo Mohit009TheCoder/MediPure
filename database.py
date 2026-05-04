@@ -117,10 +117,8 @@ class PaymentReceipt(Base):
     discount_amount = Column(Integer, default=0)  # Discount in paise
     total_amount = Column(Integer)  # Total in paise
     
-    # Platform fee and doctor earnings
-    platform_fee_percentage = Column(Integer, default=20)  # 20% platform fee
-    platform_fee_amount = Column(Integer)  # Platform fee in paise
-    doctor_earnings = Column(Integer)  # Doctor's share in paise
+    # Doctor earnings (full amount, fee deducted at withdrawal)
+    doctor_earnings = Column(Integer)  # Full consultation fee goes to doctor initially
     
     # Additional info
     appointment_date = Column(DateTime)
@@ -141,12 +139,19 @@ class DoctorEarnings(Base):
     # Earnings summary
     total_consultations = Column(Integer, default=0)
     total_revenue = Column(Integer, default=0)  # Total amount received from patients (in paise)
-    platform_fees_paid = Column(Integer, default=0)  # Total platform fees (in paise)
-    total_earnings = Column(Integer, default=0)  # Net earnings after platform fee (in paise)
+    platform_fees_paid = Column(Integer, default=0)  # Total platform fees from withdrawals (in paise)
+    total_earnings = Column(Integer, default=0)  # Gross earnings before withdrawal fees (in paise)
     
     # Withdrawal tracking
-    withdrawn_amount = Column(Integer, default=0)  # Amount already withdrawn (in paise)
+    withdrawn_amount = Column(Integer, default=0)  # Net amount paid to doctor (in paise)
     pending_amount = Column(Integer, default=0)  # Amount available for withdrawal (in paise)
+    
+    # Daily withdrawal tracking
+    last_withdrawal_date = Column(String, nullable=True)  # Date in YYYY-MM-DD format
+    withdrawals_today = Column(Integer, default=0)  # Count of withdrawals today
+    
+    # Platform earnings from penalties
+    penalty_fees_collected = Column(Integer, default=0)  # Extra 5% from 3rd+ withdrawals
     
     # Timestamps
     last_updated = Column(DateTime, default=datetime.datetime.utcnow)
@@ -162,8 +167,11 @@ class Withdrawal(Base):
     
     # Withdrawal details
     withdrawal_number = Column(String, unique=True, index=True)  # Unique withdrawal number
-    amount = Column(Integer)  # Amount in paise
-    status = Column(String, default="pending")  # pending, processing, completed, failed
+    gross_amount = Column(Integer)  # Amount before platform fee (in paise)
+    platform_fee_percentage = Column(Integer)  # 10% or 15% based on frequency
+    platform_fee_amount = Column(Integer)  # Platform fee deducted (in paise)
+    net_amount = Column(Integer)  # Final amount to doctor after fee (in paise)
+    status = Column(String, default="pending")  # pending, approved, processing, completed, rejected
     
     # Bank details
     account_holder_name = Column(String)
@@ -173,12 +181,20 @@ class Withdrawal(Base):
     
     # Processing details
     requested_date = Column(DateTime, default=datetime.datetime.utcnow)
-    processed_date = Column(DateTime, nullable=True)
+    approved_date = Column(DateTime, nullable=True)  # When admin approved
+    processed_date = Column(DateTime, nullable=True)  # When payment completed
+    approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)  # Admin who approved
     transaction_id = Column(String, nullable=True)
     notes = Column(String, nullable=True)
+    admin_notes = Column(String, nullable=True)  # Admin's internal notes
+    
+    # Withdrawal frequency tracking
+    withdrawal_count_today = Column(Integer, default=0)  # Count of withdrawals on request date
+    is_penalty_applied = Column(Boolean, default=False)  # True if 15% fee applied
     
     # Relationship
     doctor = relationship("User", foreign_keys=[doctor_id])
+    approved_by_admin = relationship("User", foreign_keys=[approved_by])
 
 Base.metadata.create_all(bind=engine)
 

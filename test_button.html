@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Appointment Button</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .appointment-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            border-left: 4px solid #1e88e5;
+            max-width: 600px;
+        }
+        .appointment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        .appointment-doctor {
+            font-weight: 600;
+            color: #212529;
+            font-size: 1.1rem;
+        }
+        .appointment-specialty {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-top: 4px;
+        }
+        .appointment-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 12px;
+        }
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        .detail-item i {
+            color: #1e88e5;
+        }
+        .badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .badge-scheduled { background: #e8f5e9; color: #2e7d32; }
+        .badge-physical { background: #fff3e0; color: #e65100; }
+    </style>
+</head>
+<body>
+    <h1>Test Appointment Card with Button</h1>
+    
+    <div class="appointment-card">
+        <div class="appointment-header">
+            <div>
+                <div class="appointment-doctor">John Patient</div>
+                <div class="appointment-specialty">
+                    <i class="fas fa-phone"></i> 9876543210 • 
+                    <i class="fas fa-envelope"></i> patient@test.com
+                </div>
+            </div>
+            <span class="badge badge-scheduled">scheduled</span>
+        </div>
+        <div class="appointment-details">
+            <div class="detail-item">
+                <i class="fas fa-hospital"></i>
+                <span class="badge badge-physical">physical</span>
+            </div>
+            <div class="detail-item">
+                <i class="fas fa-calendar"></i>
+                <span>Mon, May 4, 2026, 05:00 PM</span>
+            </div>
+            <div class="detail-item">
+                <i class="fas fa-check-circle"></i>
+                <span style="color: #4caf50; font-weight: 600;">Paid</span>
+            </div>
+            <div class="detail-item" style="grid-column: 1 / -1; margin-top: 10px;">
+                <button onclick="alert('Button clicked!')" 
+                    style="width: 100%; padding: 12px; background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.3s;">
+                    <i class="fas fa-check-circle"></i>
+                    Mark as Completed
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="appointment-card">
+        <div class="appointment-header">
+            <div>
+                <div class="appointment-doctor">Jane Doe</div>
+                <div class="appointment-specialty">
+                    <i class="fas fa-phone"></i> 9876543211 • 
+                    <i class="fas fa-envelope"></i> jane@test.com
+                </div>
+            </div>
+            <span class="badge badge-scheduled" style="background: #f3e5f5; color: #7b1fa2;">completed</span>
+        </div>
+        <div class="appointment-details">
+            <div class="detail-item">
+                <i class="fas fa-hospital"></i>
+                <span class="badge badge-physical">physical</span>
+            </div>
+            <div class="detail-item">
+                <i class="fas fa-calendar"></i>
+                <span>Mon, May 3, 2026, 03:00 PM</span>
+            </div>
+            <div class="detail-item">
+                <i class="fas fa-check-circle"></i>
+                <span style="color: #4caf50; font-weight: 600;">Paid</span>
+            </div>
+            <div class="detail-item" style="grid-column: 1 / -1;">
+                <div style="padding: 10px; background: #e8f5e9; border-radius: 8px; text-align: center; color: #2e7d32; font-weight: 600;">
+                    <i class="fas fa-check-circle"></i> Consultation Completed
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

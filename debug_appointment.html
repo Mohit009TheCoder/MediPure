@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Appointment</title>
+    <script>
+        // Simulate the appointment data
+        const app = {
+            id: 1,
+            patient_name: "John Patient",
+            patient_phone: "9876543210",
+            patient_email: "patient@test.com",
+            status: "scheduled",
+            payment_status: "paid",
+            appointment_type: "physical",
+            start_time: "2026-05-04T17:00:00"
+        };
+        
+        console.log("Appointment data:", app);
+        console.log("Status check:", app.status === 'scheduled');
+        console.log("Payment check:", app.payment_status === 'paid');
+        console.log("Both conditions:", app.status === 'scheduled' && app.payment_status === 'paid');
+        
+        // Check if button should appear
+        let actionButtons = '';
+        if (app.status === 'scheduled' && app.payment_status === 'paid') {
+            actionButtons = `
+                <div class="detail-item" style="grid-column: 1 / -1; margin-top: 10px;">
+                    <button onclick="alert('Clicked!')" 
+                        style="width: 100%; padding: 12px; background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.3s;">
+                        <i class="fas fa-check-circle"></i>
+                        Mark as Completed
+                    </button>
+                </div>
+            `;
+            console.log("Button HTML generated:", actionButtons);
+        } else {
+            console.log("Button NOT generated - conditions not met");
+        }
+    </script>
+</head>
+<body>
+    <h1>Check Console for Debug Info</h1>
+    <p>Open browser console (F12) to see the debug output</p>
+</body>
+</html>

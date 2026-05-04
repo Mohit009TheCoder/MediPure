@@ -54,17 +54,32 @@ def generate_withdrawal_number():
     random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
     return f"WD-{timestamp}-{random_str}"
 
-def calculate_platform_fee(amount, fee_percentage=20):
-    """Calculate platform fee and doctor earnings"""
+def calculate_withdrawal_fee(amount, withdrawal_count_today):
+    """
+    Calculate platform fee based on withdrawal frequency
+    - First 2 withdrawals per day: 10% fee
+    - 3rd+ withdrawals per day: 15% fee (5% penalty)
+    """
+    if withdrawal_count_today < 2:
+        fee_percentage = 10
+        is_penalty = False
+    else:
+        fee_percentage = 15
+        is_penalty = True
+    
     platform_fee = int(amount * fee_percentage / 100)
-    doctor_earnings = amount - platform_fee
-    return platform_fee, doctor_earnings
+    net_amount = amount - platform_fee
+    
+    return {
+        'fee_percentage': fee_percentage,
+        'platform_fee': platform_fee,
+        'net_amount': net_amount,
+        'is_penalty': is_penalty,
+        'penalty_amount': int(amount * 5 / 100) if is_penalty else 0
+    }
 
 def update_doctor_earnings(db: Session, doctor_id: int, consultation_fee: int):
-    """Update doctor earnings after successful payment"""
-    # Calculate platform fee and doctor earnings
-    platform_fee, doctor_earnings = calculate_platform_fee(consultation_fee)
-    
+    """Update doctor earnings after successful payment - NO platform fee at this stage"""
     # Get or create doctor earnings record
     earnings = db.query(database.DoctorEarnings).filter(
         database.DoctorEarnings.doctor_id == doctor_id
@@ -78,16 +93,34 @@ def update_doctor_earnings(db: Session, doctor_id: int, consultation_fee: int):
             platform_fees_paid=0,
             total_earnings=0,
             withdrawn_amount=0,
-            pending_amount=0
+            pending_amount=0,
+            withdrawals_today=0,
+            penalty_fees_collected=0
         )
         db.add(earnings)
     
-    # Update earnings
+    # Update earnings - full consultation fee goes to doctor
     earnings.total_consultations += 1
     earnings.total_revenue += consultation_fee
-    earnings.platform_fees_paid += platform_fee
-    earnings.total_earnings += doctor_earnings
-    earnings.pending_amount += doctor_earnings
+    earnings.total_earnings += consultation_fee  # Full amount
+    earnings.pending_amount += consultation_fee  # Full amount available
+    earnings.last_updated = datetime.utcnow()
+    
+    db.commit()
+    return consultation_fee  # Return full amount
+
+def get_withdrawal_count_today(db: Session, doctor_id: int):
+    """Get count of withdrawals requested today by doctor"""
+    today = datetime.now().strftime("%Y-%m-%d")
+    
+    # Count withdrawals with status pending, approved, processing, or completed today
+    count = db.query(database.Withdrawal).filter(
+        database.Withdrawal.doctor_id == doctor_id,
+        database.Withdrawal.requested_date >= datetime.strptime(today, "%Y-%m-%d"),
+        database.Withdrawal.status.in_(['pending', 'approved', 'processing', 'completed'])
+    ).count()
+    
+    return count
     earnings.last_updated = datetime.utcnow()
     
     db.commit()
@@ -388,15 +421,64 @@ def get_doctor_appointments(current_user: database.User = Depends(auth.get_curre
             "id": appt.id,
             "patient_id": appt.patient_id,
             "patient_name": patient.full_name if patient else "Unknown",
+            "patient_phone": patient.phone if patient else "N/A",
+            "patient_email": patient.email if patient else "N/A",
             "doctor_id": appt.doctor_id,
             "slot_id": appt.slot_id,
             "start_time": slot.start_time.isoformat() if slot else None,
             "end_time": slot.end_time.isoformat() if slot else None,
             "appointment_type": appt.appointment_type,
             "status": appt.status,
+            "payment_status": appt.payment_status,
             "created_at": appt.created_at.isoformat()
         })
     return result
+
+class AppointmentStatusUpdate(BaseModel):
+    status: str  # "completed", "cancelled"
+    notes: Optional[str] = None
+
+@app.put("/doctor/appointments/{appointment_id}/status")
+def update_appointment_status(
+    appointment_id: int, 
+    status_update: AppointmentStatusUpdate,
+    current_user: database.User = Depends(auth.get_current_user), 
+    db: Session = Depends(database.get_db)
+):
+    """Mark appointment as completed or cancelled (doctor only)"""
+    if current_user.role != "doctor":
+        raise HTTPException(status_code=403, detail="Only doctors can update appointment status")
+    
+    # Get appointment
+    appointment = db.query(database.Appointment).filter(
+        database.Appointment.id == appointment_id,
+        database.Appointment.doctor_id == current_user.id
+    ).first()
+    
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    
+    # Validate status
+    if status_update.status not in ["completed", "cancelled"]:
+        raise HTTPException(status_code=400, detail="Status must be 'completed' or 'cancelled'")
+    
+    # Check if appointment is paid
+    if appointment.payment_status != "paid":
+        raise HTTPException(status_code=400, detail="Cannot update status of unpaid appointment")
+    
+    # Update status
+    old_status = appointment.status
+    appointment.status = status_update.status
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Appointment marked as {status_update.status}",
+        "appointment_id": appointment.id,
+        "old_status": old_status,
+        "new_status": appointment.status
+    }
 
 # Patient Endpoints
 @app.get("/doctors/search")
@@ -631,12 +713,12 @@ def verify_payment(payment: PaymentVerification, current_user: database.User = D
     
     # Calculate amounts
     consultation_fee = appointment.payment_amount  # Already in paise
-    tax_amount = 0  # No tax for now, can be calculated as needed
-    discount_amount = 0  # No discount for now
+    tax_amount = 0  # No tax for now
+    discount_amount = 0  # No discount
     total_amount = consultation_fee + tax_amount - discount_amount
     
-    # Calculate platform fee (20%) and doctor earnings (80%)
-    platform_fee, doctor_earnings = calculate_platform_fee(consultation_fee)
+    # Doctor gets FULL amount initially (fee deducted at withdrawal)
+    doctor_earnings = consultation_fee
     
     # Get current time in IST
     now_ist = get_ist_now()
@@ -655,9 +737,7 @@ def verify_payment(payment: PaymentVerification, current_user: database.User = D
         tax_amount=tax_amount,
         discount_amount=discount_amount,
         total_amount=total_amount,
-        platform_fee_percentage=20,
-        platform_fee_amount=platform_fee,
-        doctor_earnings=doctor_earnings,
+        doctor_earnings=doctor_earnings,  # Full amount
         appointment_date=slot.start_time if slot else None,
         appointment_type=appointment.appointment_type,
         consultation_fee=consultation_fee
@@ -665,6 +745,10 @@ def verify_payment(payment: PaymentVerification, current_user: database.User = D
     
     db.add(receipt)
     db.commit()
+    db.refresh(receipt)
+    
+    # Update doctor earnings (full amount, no fee yet)
+    update_doctor_earnings(db, appointment.doctor_id, consultation_fee)
     db.refresh(receipt)
     
     # Update doctor earnings
@@ -896,7 +980,7 @@ def get_all_receipts(current_user: database.User = Depends(auth.get_current_user
 # Doctor Earnings Endpoints
 @app.get("/doctor/earnings")
 def get_doctor_earnings(current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
-    """Get earnings summary for current doctor"""
+    """Get earnings summary for current doctor - READ ONLY"""
     if current_user.role != "doctor":
         raise HTTPException(status_code=403, detail="Only doctors can access earnings")
     
@@ -913,27 +997,39 @@ def get_doctor_earnings(current_user: database.User = Depends(auth.get_current_u
             platform_fees_paid=0,
             total_earnings=0,
             withdrawn_amount=0,
-            pending_amount=0
+            pending_amount=0,
+            withdrawals_today=0,
+            penalty_fees_collected=0
         )
         db.add(earnings)
         db.commit()
         db.refresh(earnings)
     
+    # Get today's withdrawal count
+    withdrawal_count_today = get_withdrawal_count_today(db, current_user.id)
+    
+    # Calculate next withdrawal fee
+    next_fee_calc = calculate_withdrawal_fee(earnings.pending_amount, withdrawal_count_today)
+    
     return {
         "doctor_id": earnings.doctor_id,
         "total_consultations": earnings.total_consultations,
-        "total_revenue": earnings.total_revenue / 100,  # Convert to rupees
-        "platform_fees_paid": earnings.platform_fees_paid / 100,
-        "platform_fee_percentage": 20,
-        "total_earnings": earnings.total_earnings / 100,
-        "withdrawn_amount": earnings.withdrawn_amount / 100,
-        "pending_amount": earnings.pending_amount / 100,
-        "last_updated": earnings.last_updated.isoformat() if earnings.last_updated else None
+        "total_revenue": earnings.total_revenue / 100,  # Total from patients
+        "total_earnings": earnings.total_earnings / 100,  # Gross earnings (before withdrawal fees)
+        "platform_fees_paid": earnings.platform_fees_paid / 100,  # Fees paid on withdrawals
+        "penalty_fees_paid": earnings.penalty_fees_collected / 100,  # Extra 5% penalties
+        "withdrawn_amount": earnings.withdrawn_amount / 100,  # Net amount received
+        "pending_amount": earnings.pending_amount / 100,  # Available for withdrawal
+        "withdrawals_today": withdrawal_count_today,
+        "next_withdrawal_fee_percentage": next_fee_calc['fee_percentage'],
+        "next_withdrawal_will_be_penalty": next_fee_calc['is_penalty'],
+        "last_updated": earnings.last_updated.isoformat() if earnings.last_updated else None,
+        "note": "Platform fee is deducted when you request withdrawal. First 2 withdrawals per day: 10% fee. 3rd+ withdrawals: 15% fee."
     }
 
 @app.get("/doctor/earnings/breakdown")
 def get_earnings_breakdown(current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
-    """Get detailed earnings breakdown by appointment"""
+    """Get detailed earnings breakdown by appointment - READ ONLY"""
     if current_user.role != "doctor":
         raise HTTPException(status_code=403, detail="Only doctors can access earnings")
     
@@ -952,9 +1048,9 @@ def get_earnings_breakdown(current_user: database.User = Depends(auth.get_curren
             "receipt_date": receipt_date_ist.isoformat() if receipt_date_ist else None,
             "patient_name": patient.full_name if patient else "Unknown",
             "consultation_fee": receipt.consultation_fee / 100,
-            "platform_fee": receipt.platform_fee_amount / 100,
-            "your_earnings": receipt.doctor_earnings / 100,
-            "appointment_type": receipt.appointment_type
+            "your_earnings": receipt.doctor_earnings / 100,  # Full amount (fee deducted at withdrawal)
+            "appointment_type": receipt.appointment_type,
+            "note": "Platform fee will be deducted when you withdraw"
         })
     
     return result
@@ -962,7 +1058,7 @@ def get_earnings_breakdown(current_user: database.User = Depends(auth.get_curren
 # Withdrawal Endpoints
 @app.post("/doctor/withdraw")
 def request_withdrawal(withdrawal: WithdrawalRequest, current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
-    """Request withdrawal of earnings"""
+    """Request withdrawal of earnings - Admin will approve and process"""
     if current_user.role != "doctor":
         raise HTTPException(status_code=403, detail="Only doctors can request withdrawals")
     
@@ -975,10 +1071,10 @@ def request_withdrawal(withdrawal: WithdrawalRequest, current_user: database.Use
         raise HTTPException(status_code=404, detail="No earnings found")
     
     # Convert amount to paise
-    amount_in_paise = withdrawal.amount * 100
+    gross_amount = withdrawal.amount * 100
     
     # Check if sufficient balance
-    if amount_in_paise > earnings.pending_amount:
+    if gross_amount > earnings.pending_amount:
         raise HTTPException(
             status_code=400, 
             detail=f"Insufficient balance. Available: ₹{earnings.pending_amount / 100}"
@@ -988,43 +1084,60 @@ def request_withdrawal(withdrawal: WithdrawalRequest, current_user: database.Use
     if withdrawal.amount < 100:
         raise HTTPException(status_code=400, detail="Minimum withdrawal amount is ₹100")
     
-    # Create withdrawal request
+    # Get withdrawal count today
+    withdrawal_count_today = get_withdrawal_count_today(db, current_user.id)
+    
+    # Calculate platform fee based on frequency
+    fee_calc = calculate_withdrawal_fee(gross_amount, withdrawal_count_today)
+    
+    # Create withdrawal request (pending admin approval)
     withdrawal_number = generate_withdrawal_number()
     new_withdrawal = database.Withdrawal(
         doctor_id=current_user.id,
         withdrawal_number=withdrawal_number,
-        amount=amount_in_paise,
-        status="pending",
+        gross_amount=gross_amount,
+        platform_fee_percentage=fee_calc['fee_percentage'],
+        platform_fee_amount=fee_calc['platform_fee'],
+        net_amount=fee_calc['net_amount'],
+        status="pending",  # Waiting for admin approval
         account_holder_name=withdrawal.account_holder_name,
         account_number=withdrawal.account_number,
         ifsc_code=withdrawal.ifsc_code,
         bank_name=withdrawal.bank_name,
-        requested_date=datetime.utcnow()
+        requested_date=datetime.utcnow(),
+        withdrawal_count_today=withdrawal_count_today + 1,
+        is_penalty_applied=fee_calc['is_penalty']
     )
     
     db.add(new_withdrawal)
-    
-    # Update earnings - move from pending to withdrawn
-    earnings.pending_amount -= amount_in_paise
-    earnings.withdrawn_amount += amount_in_paise
-    earnings.last_updated = datetime.utcnow()
-    
     db.commit()
     db.refresh(new_withdrawal)
     
+    # Note: Balance NOT deducted yet - only deducted when admin approves
+    
+    # Prepare response message
+    fee_message = f"{fee_calc['fee_percentage']}% platform fee"
+    if fee_calc['is_penalty']:
+        fee_message += f" (includes 5% penalty for 3rd+ withdrawal today)"
+    
     return {
         "success": True,
-        "message": "Withdrawal request submitted successfully",
+        "message": "Withdrawal request submitted for admin approval",
         "withdrawal_id": new_withdrawal.id,
         "withdrawal_number": withdrawal_number,
-        "amount": withdrawal.amount,
+        "gross_amount": withdrawal.amount,
+        "platform_fee_percentage": fee_calc['fee_percentage'],
+        "platform_fee": fee_calc['platform_fee'] / 100,
+        "net_amount": fee_calc['net_amount'] / 100,
         "status": "pending",
-        "note": "Your withdrawal will be processed within 3-5 business days"
+        "note": f"Admin will review and process your request. {fee_message}. You will receive ₹{fee_calc['net_amount'] / 100} after approval.",
+        "is_penalty_applied": fee_calc['is_penalty'],
+        "withdrawal_count_today": withdrawal_count_today + 1
     }
 
 @app.get("/doctor/withdrawals")
 def get_withdrawal_history(current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
-    """Get withdrawal history for current doctor"""
+    """Get withdrawal history for current doctor - READ ONLY"""
     if current_user.role != "doctor":
         raise HTTPException(status_code=403, detail="Only doctors can access withdrawal history")
     
@@ -1035,17 +1148,24 @@ def get_withdrawal_history(current_user: database.User = Depends(auth.get_curren
     result = []
     for w in withdrawals:
         requested_date_ist = utc_to_ist(w.requested_date) if w.requested_date else None
+        approved_date_ist = utc_to_ist(w.approved_date) if w.approved_date else None
         processed_date_ist = utc_to_ist(w.processed_date) if w.processed_date else None
         
         result.append({
             "withdrawal_id": w.id,
             "withdrawal_number": w.withdrawal_number,
-            "amount": w.amount / 100,
+            "gross_amount": w.gross_amount / 100,
+            "platform_fee_percentage": w.platform_fee_percentage,
+            "platform_fee": w.platform_fee_amount / 100,
+            "net_amount": w.net_amount / 100,
             "status": w.status,
+            "is_penalty_applied": w.is_penalty_applied,
+            "withdrawal_count_today": w.withdrawal_count_today,
             "account_holder_name": w.account_holder_name,
             "account_number": "XXXX" + w.account_number[-4:] if w.account_number else "N/A",  # Masked
             "bank_name": w.bank_name,
             "requested_date": requested_date_ist.isoformat() if requested_date_ist else None,
+            "approved_date": approved_date_ist.isoformat() if approved_date_ist else None,
             "processed_date": processed_date_ist.isoformat() if processed_date_ist else None,
             "transaction_id": w.transaction_id,
             "notes": w.notes
@@ -1056,7 +1176,7 @@ def get_withdrawal_history(current_user: database.User = Depends(auth.get_curren
 # Admin Withdrawal Management
 @app.get("/admin/withdrawals")
 def get_all_withdrawals(current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
-    """Get all withdrawal requests (admin only)"""
+    """Get all withdrawal requests with detailed calculations (admin only)"""
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
@@ -1068,35 +1188,51 @@ def get_all_withdrawals(current_user: database.User = Depends(auth.get_current_u
     for w in withdrawals:
         doctor = db.query(database.User).filter(database.User.id == w.doctor_id).first()
         requested_date_ist = utc_to_ist(w.requested_date) if w.requested_date else None
+        approved_date_ist = utc_to_ist(w.approved_date) if w.approved_date else None
         processed_date_ist = utc_to_ist(w.processed_date) if w.processed_date else None
+        
+        # Get doctor's current earnings
+        earnings = db.query(database.DoctorEarnings).filter(
+            database.DoctorEarnings.doctor_id == w.doctor_id
+        ).first()
         
         result.append({
             "withdrawal_id": w.id,
             "withdrawal_number": w.withdrawal_number,
+            "doctor_id": w.doctor_id,
             "doctor_name": doctor.full_name if doctor else "Unknown",
             "doctor_email": doctor.email if doctor else "N/A",
-            "amount": w.amount / 100,
+            "doctor_phone": doctor.phone if doctor else "N/A",
+            "gross_amount": w.gross_amount / 100,
+            "platform_fee_percentage": w.platform_fee_percentage,
+            "platform_fee": w.platform_fee_amount / 100,
+            "net_amount": w.net_amount / 100,
             "status": w.status,
+            "is_penalty_applied": w.is_penalty_applied,
+            "withdrawal_count_today": w.withdrawal_count_today,
             "account_holder_name": w.account_holder_name,
             "account_number": w.account_number,
             "ifsc_code": w.ifsc_code,
             "bank_name": w.bank_name,
             "requested_date": requested_date_ist.isoformat() if requested_date_ist else None,
+            "approved_date": approved_date_ist.isoformat() if approved_date_ist else None,
             "processed_date": processed_date_ist.isoformat() if processed_date_ist else None,
             "transaction_id": w.transaction_id,
-            "notes": w.notes
+            "notes": w.notes,
+            "admin_notes": w.admin_notes,
+            "doctor_pending_balance": earnings.pending_amount / 100 if earnings else 0,
+            "doctor_total_earnings": earnings.total_earnings / 100 if earnings else 0
         })
     
     return result
 
-class WithdrawalUpdate(BaseModel):
-    status: str  # processing, completed, failed
-    transaction_id: Optional[str] = None
-    notes: Optional[str] = None
+class WithdrawalApproval(BaseModel):
+    action: str  # "approve" or "reject"
+    admin_notes: Optional[str] = None
 
-@app.put("/admin/withdrawals/{withdrawal_id}")
-def update_withdrawal_status(withdrawal_id: int, update: WithdrawalUpdate, current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
-    """Update withdrawal status (admin only)"""
+@app.post("/admin/withdrawals/{withdrawal_id}/approve")
+def approve_withdrawal(withdrawal_id: int, approval: WithdrawalApproval, current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """Approve or reject withdrawal request (admin only)"""
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
@@ -1105,7 +1241,104 @@ def update_withdrawal_status(withdrawal_id: int, update: WithdrawalUpdate, curre
     if not withdrawal:
         raise HTTPException(status_code=404, detail="Withdrawal not found")
     
+    if withdrawal.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Withdrawal is already {withdrawal.status}")
+    
+    # Get doctor earnings
+    earnings = db.query(database.DoctorEarnings).filter(
+        database.DoctorEarnings.doctor_id == withdrawal.doctor_id
+    ).first()
+    
+    if not earnings:
+        raise HTTPException(status_code=404, detail="Doctor earnings not found")
+    
+    if approval.action == "approve":
+        # Check if doctor still has sufficient balance
+        if withdrawal.gross_amount > earnings.pending_amount:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient balance. Doctor has ₹{earnings.pending_amount / 100}, requested ₹{withdrawal.gross_amount / 100}"
+            )
+        
+        # Deduct from pending balance
+        earnings.pending_amount -= withdrawal.gross_amount
+        
+        # Add platform fee to earnings
+        earnings.platform_fees_paid += withdrawal.platform_fee_amount
+        
+        # Track penalty fees separately
+        if withdrawal.is_penalty_applied:
+            penalty_amount = int(withdrawal.gross_amount * 5 / 100)
+            earnings.penalty_fees_collected += penalty_amount
+        
+        # Update withdrawal status
+        withdrawal.status = "approved"
+        withdrawal.approved_date = datetime.utcnow()
+        withdrawal.approved_by = current_user.id
+        if approval.admin_notes:
+            withdrawal.admin_notes = approval.admin_notes
+        
+        earnings.last_updated = datetime.utcnow()
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "Withdrawal approved successfully",
+            "withdrawal_id": withdrawal.id,
+            "withdrawal_number": withdrawal.withdrawal_number,
+            "gross_amount": withdrawal.gross_amount / 100,
+            "platform_fee": withdrawal.platform_fee_amount / 100,
+            "net_amount": withdrawal.net_amount / 100,
+            "status": "approved",
+            "note": f"Deducted ₹{withdrawal.gross_amount / 100} from doctor's balance. Platform fee: ₹{withdrawal.platform_fee_amount / 100}. Doctor will receive: ₹{withdrawal.net_amount / 100}"
+        }
+    
+    elif approval.action == "reject":
+        # Reject withdrawal - no balance changes
+        withdrawal.status = "rejected"
+        withdrawal.approved_date = datetime.utcnow()
+        withdrawal.approved_by = current_user.id
+        if approval.admin_notes:
+            withdrawal.admin_notes = approval.admin_notes
+        else:
+            withdrawal.admin_notes = "Rejected by admin"
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "Withdrawal rejected",
+            "withdrawal_id": withdrawal.id,
+            "withdrawal_number": withdrawal.withdrawal_number,
+            "status": "rejected",
+            "note": "No balance changes made"
+        }
+    
+    else:
+        raise HTTPException(status_code=400, detail="Invalid action. Use 'approve' or 'reject'")
+
+class WithdrawalUpdate(BaseModel):
+    status: str  # "processing", "completed", "failed"
+    transaction_id: Optional[str] = None
+    notes: Optional[str] = None
+
+@app.put("/admin/withdrawals/{withdrawal_id}")
+def update_withdrawal_status(withdrawal_id: int, update: WithdrawalUpdate, current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """Update withdrawal payment status after approval (admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    withdrawal = db.query(database.Withdrawal).filter(database.Withdrawal.id == withdrawal_id).first()
+    
+    if not withdrawal:
+        raise HTTPException(status_code=404, detail="Withdrawal not found")
+    
+    if withdrawal.status not in ["approved", "processing"]:
+        raise HTTPException(status_code=400, detail=f"Cannot update withdrawal with status: {withdrawal.status}")
+    
     # Update status
+    old_status = withdrawal.status
     withdrawal.status = update.status
     withdrawal.processed_date = datetime.utcnow()
     
@@ -1115,15 +1348,31 @@ def update_withdrawal_status(withdrawal_id: int, update: WithdrawalUpdate, curre
     if update.notes:
         withdrawal.notes = update.notes
     
-    # If withdrawal failed, refund to doctor's pending amount
-    if update.status == "failed":
+    # If payment completed, update withdrawn amount
+    if update.status == "completed" and old_status != "completed":
         earnings = db.query(database.DoctorEarnings).filter(
             database.DoctorEarnings.doctor_id == withdrawal.doctor_id
         ).first()
         
         if earnings:
-            earnings.pending_amount += withdrawal.amount
-            earnings.withdrawn_amount -= withdrawal.amount
+            earnings.withdrawn_amount += withdrawal.net_amount  # Net amount paid to doctor
+            earnings.last_updated = datetime.utcnow()
+    
+    # If payment failed, refund to doctor's pending amount
+    elif update.status == "failed":
+        earnings = db.query(database.DoctorEarnings).filter(
+            database.DoctorEarnings.doctor_id == withdrawal.doctor_id
+        ).first()
+        
+        if earnings:
+            # Refund gross amount back to pending
+            earnings.pending_amount += withdrawal.gross_amount
+            # Refund platform fee
+            earnings.platform_fees_paid -= withdrawal.platform_fee_amount
+            # Refund penalty if applicable
+            if withdrawal.is_penalty_applied:
+                penalty_amount = int(withdrawal.gross_amount * 5 / 100)
+                earnings.penalty_fees_collected -= penalty_amount
             earnings.last_updated = datetime.utcnow()
     
     db.commit()
@@ -1133,7 +1382,8 @@ def update_withdrawal_status(withdrawal_id: int, update: WithdrawalUpdate, curre
         "message": f"Withdrawal {update.status}",
         "withdrawal_id": withdrawal.id,
         "withdrawal_number": withdrawal.withdrawal_number,
-        "status": withdrawal.status
+        "status": withdrawal.status,
+        "net_amount_paid": withdrawal.net_amount / 100 if update.status == "completed" else 0
     }
 
 # Profile Endpoints
@@ -1446,6 +1696,10 @@ def read_payment():
 @app.get("/receipt")
 def read_receipt():
     return FileResponse("static/receipt.html")
+
+@app.get("/doctor-payment-terms")
+def read_doctor_payment_terms():
+    return FileResponse("static/doctor-payment-terms.html")
 
 @app.get("/calendar")
 def read_calendar():

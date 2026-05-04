@@ -201,9 +201,9 @@
         }
 
         .appointment-details {
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
             margin-top: 12px;
         }
 
@@ -537,7 +537,8 @@
                 { icon: 'fa-clock', text: 'Manage Slots', action: () => showManageSlots() },
                 { icon: 'fa-wallet', text: 'My Earnings', action: () => showDoctorEarnings() },
                 { icon: 'fa-money-bill-wave', text: 'Withdraw Funds', action: () => showWithdrawalForm() },
-                { icon: 'fa-history', text: 'Withdrawal History', action: () => showWithdrawalHistory() }
+                { icon: 'fa-history', text: 'Withdrawal History', action: () => showWithdrawalHistory() },
+                { icon: 'fa-file-contract', text: 'Payment Terms', action: () => window.location.href = '/doctor-payment-terms' }
             ];
 
             renderQuickActions(actions);
@@ -572,6 +573,7 @@
                     { icon: 'fa-user-md', text: 'View All Doctors', action: () => loadAllDoctors() },
                     { icon: 'fa-users', text: 'View All Patients', action: () => loadAllPatients() },
                     { icon: 'fa-calendar-alt', text: 'All Appointments', action: () => loadAllAppointments() },
+                    { icon: 'fa-money-bill-wave', text: 'Withdrawal Requests', action: () => loadAdminWithdrawals() },
                     { icon: 'fa-chart-line', text: 'System Analytics', action: () => showSystemAnalytics(stats) }
                 ];
                 
@@ -958,6 +960,383 @@
             `;
         }
 
+        // Admin Withdrawal Management
+        async function loadAdminWithdrawals() {
+            try {
+                document.getElementById('contentTitle').innerHTML = '<i class="fas fa-money-bill-wave"></i> Withdrawal Requests';
+                
+                const res = await fetch('/admin/withdrawals', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                
+                const withdrawals = await res.json();
+                const contentBody = document.getElementById('contentBody');
+                
+                if (withdrawals.length === 0) {
+                    contentBody.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <p>No withdrawal requests</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Group by status
+                const pending = withdrawals.filter(w => w.status === 'pending');
+                const approved = withdrawals.filter(w => w.status === 'approved');
+                const processing = withdrawals.filter(w => w.status === 'processing');
+                const completed = withdrawals.filter(w => w.status === 'completed');
+                const rejected = withdrawals.filter(w => w.status === 'rejected');
+                
+                contentBody.innerHTML = '';
+                
+                // Pending Requests (Need Action)
+                if (pending.length > 0) {
+                    const pendingHeader = document.createElement('div');
+                    pendingHeader.style.cssText = 'font-size: 1.2rem; font-weight: 600; margin: 20px 0 15px 0; color: #ff9800; display: flex; align-items: center; gap: 10px;';
+                    pendingHeader.innerHTML = '<i class="fas fa-clock"></i> Pending Approval (' + pending.length + ')';
+                    contentBody.appendChild(pendingHeader);
+                    
+                    pending.forEach(w => {
+                        contentBody.appendChild(createWithdrawalCard(w, true));
+                    });
+                }
+                
+                // Approved (Waiting for Payment)
+                if (approved.length > 0) {
+                    const approvedHeader = document.createElement('div');
+                    approvedHeader.style.cssText = 'font-size: 1.2rem; font-weight: 600; margin: 30px 0 15px 0; color: #4caf50; display: flex; align-items: center; gap: 10px;';
+                    approvedHeader.innerHTML = '<i class="fas fa-check-circle"></i> Approved - Awaiting Payment (' + approved.length + ')';
+                    contentBody.appendChild(approvedHeader);
+                    
+                    approved.forEach(w => {
+                        contentBody.appendChild(createWithdrawalCard(w, false));
+                    });
+                }
+                
+                // Processing
+                if (processing.length > 0) {
+                    const processingHeader = document.createElement('div');
+                    processingHeader.style.cssText = 'font-size: 1.2rem; font-weight: 600; margin: 30px 0 15px 0; color: #1e88e5; display: flex; align-items: center; gap: 10px;';
+                    processingHeader.innerHTML = '<i class="fas fa-spinner"></i> Processing (' + processing.length + ')';
+                    contentBody.appendChild(processingHeader);
+                    
+                    processing.forEach(w => {
+                        contentBody.appendChild(createWithdrawalCard(w, false));
+                    });
+                }
+                
+                // Show completed/rejected in collapsed section
+                if (completed.length > 0 || rejected.length > 0) {
+                    const historyHeader = document.createElement('div');
+                    historyHeader.style.cssText = 'font-size: 1.2rem; font-weight: 600; margin: 30px 0 15px 0; color: #6c757d; display: flex; align-items: center; gap: 10px; cursor: pointer;';
+                    historyHeader.innerHTML = '<i class="fas fa-history"></i> History (' + (completed.length + rejected.length) + ') <i class="fas fa-chevron-down" style="font-size: 0.8rem; margin-left: auto;"></i>';
+                    historyHeader.onclick = () => {
+                        const historySection = document.getElementById('historySection');
+                        historySection.style.display = historySection.style.display === 'none' ? 'block' : 'none';
+                    };
+                    contentBody.appendChild(historyHeader);
+                    
+                    const historySection = document.createElement('div');
+                    historySection.id = 'historySection';
+                    historySection.style.display = 'none';
+                    
+                    [...completed, ...rejected].forEach(w => {
+                        historySection.appendChild(createWithdrawalCard(w, false));
+                    });
+                    
+                    contentBody.appendChild(historySection);
+                }
+                
+            } catch (error) {
+                console.error('Error loading withdrawals:', error);
+                const contentBody = document.getElementById('contentBody');
+                contentBody.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle" style="color: #ff9800;"></i>
+                        <p>Failed to load withdrawal requests</p>
+                        <button onclick="loadAdminWithdrawals()" style="margin-top: 15px; padding: 10px 20px; background: #1e88e5; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            <i class="fas fa-redo"></i> Retry
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        function createWithdrawalCard(w, showActions) {
+            const card = document.createElement('div');
+            card.className = 'appointment-card';
+            
+            // Status colors
+            const statusColors = {
+                'pending': { bg: '#fff3e0', color: '#e65100', border: '#ff9800' },
+                'approved': { bg: '#e8f5e9', color: '#2e7d32', border: '#4caf50' },
+                'processing': { bg: '#e3f2fd', color: '#1565c0', border: '#1e88e5' },
+                'completed': { bg: '#f3e5f5', color: '#6a1b9a', border: '#9c27b0' },
+                'rejected': { bg: '#ffebee', color: '#c62828', border: '#f44336' }
+            };
+            
+            const statusColor = statusColors[w.status] || statusColors['pending'];
+            card.style.borderLeftColor = statusColor.border;
+            
+            const requestedDate = new Date(w.requested_date).toLocaleString('en-IN', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZone: 'Asia/Kolkata'
+            }) + ' IST';
+            
+            let actionButtons = '';
+            if (showActions && w.status === 'pending') {
+                actionButtons = `
+                    <div class="detail-item" style="grid-column: 1 / -1; margin-top: 15px; display: flex; gap: 10px;">
+                        <button onclick="approveWithdrawal(${w.withdrawal_id})" 
+                            style="flex: 1; padding: 12px; background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i class="fas fa-check"></i> Approve
+                        </button>
+                        <button onclick="rejectWithdrawal(${w.withdrawal_id})" 
+                            style="flex: 1; padding: 12px; background: linear-gradient(135deg, #f44336 0%, #c62828 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i class="fas fa-times"></i> Reject
+                        </button>
+                    </div>
+                `;
+            } else if (w.status === 'approved') {
+                actionButtons = `
+                    <div class="detail-item" style="grid-column: 1 / -1; margin-top: 15px;">
+                        <button onclick="markAsProcessing(${w.withdrawal_id})" 
+                            style="width: 100%; padding: 12px; background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i class="fas fa-spinner"></i> Mark as Processing
+                        </button>
+                    </div>
+                `;
+            } else if (w.status === 'processing') {
+                actionButtons = `
+                    <div class="detail-item" style="grid-column: 1 / -1; margin-top: 15px;">
+                        <button onclick="markAsCompleted(${w.withdrawal_id})" 
+                            style="width: 100%; padding: 12px; background: linear-gradient(135deg, #9c27b0 0%, #6a1b9a 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i class="fas fa-check-double"></i> Mark as Completed
+                        </button>
+                    </div>
+                `;
+            }
+            
+            const penaltyBadge = w.is_penalty_applied ? 
+                '<span class="badge" style="background: #ffebee; color: #c62828; margin-left: 10px;"><i class="fas fa-exclamation-triangle"></i> 15% Fee (Penalty)</span>' : 
+                '<span class="badge" style="background: #e8f5e9; color: #2e7d32; margin-left: 10px;"><i class="fas fa-check"></i> 10% Fee</span>';
+            
+            card.innerHTML = `
+                <div class="appointment-header">
+                    <div>
+                        <div class="appointment-doctor">
+                            ${w.doctor_name} • Withdrawal #${w.withdrawal_number}
+                        </div>
+                        <div class="appointment-specialty">
+                            ${w.doctor_specialty || 'Doctor'} • ${w.doctor_email}
+                        </div>
+                    </div>
+                    <span class="badge" style="background: ${statusColor.bg}; color: ${statusColor.color}; font-size: 0.9rem;">
+                        ${w.status.toUpperCase()}
+                    </span>
+                </div>
+                <div class="appointment-details">
+                    <div class="detail-item">
+                        <i class="fas fa-calendar"></i>
+                        <span>Requested: ${requestedDate}</span>
+                    </div>
+                    <div class="detail-item">
+                        <i class="fas fa-rupee-sign"></i>
+                        <span>Gross: ₹${w.gross_amount.toFixed(2)}</span>
+                    </div>
+                    <div class="detail-item">
+                        <i class="fas fa-minus-circle"></i>
+                        <span style="color: #ff9800;">Fee: ₹${w.platform_fee.toFixed(2)} (${w.platform_fee_percentage}%)</span>
+                    </div>
+                    <div class="detail-item">
+                        <i class="fas fa-wallet"></i>
+                        <span style="color: #4caf50; font-weight: 600; font-size: 1.1rem;">Net: ₹${w.net_amount.toFixed(2)}</span>
+                    </div>
+                    <div class="detail-item" style="grid-column: 1 / -1;">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Withdrawal ${w.withdrawal_count_today} of the day${penaltyBadge}</span>
+                    </div>
+                    <div class="detail-item" style="grid-column: 1 / -1; background: #f8f9fa; padding: 12px; border-radius: 8px; margin-top: 10px;">
+                        <div style="width: 100%;">
+                            <div style="font-weight: 600; margin-bottom: 8px; color: #212529;">
+                                <i class="fas fa-university"></i> Bank Details
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 0.9rem;">
+                                <div><strong>Account:</strong> ${w.account_number}</div>
+                                <div><strong>IFSC:</strong> ${w.ifsc_code}</div>
+                                <div><strong>Bank:</strong> ${w.bank_name}</div>
+                                <div><strong>Name:</strong> ${w.account_holder_name}</div>
+                            </div>
+                        </div>
+                    </div>
+                    ${w.notes ? `
+                    <div class="detail-item" style="grid-column: 1 / -1; background: #fff3e0; padding: 10px; border-radius: 8px; margin-top: 5px;">
+                        <i class="fas fa-sticky-note"></i>
+                        <span><strong>Doctor's Note:</strong> ${w.notes}</span>
+                    </div>
+                    ` : ''}
+                    ${w.admin_notes ? `
+                    <div class="detail-item" style="grid-column: 1 / -1; background: #e3f2fd; padding: 10px; border-radius: 8px; margin-top: 5px;">
+                        <i class="fas fa-user-shield"></i>
+                        <span><strong>Admin Note:</strong> ${w.admin_notes}</span>
+                    </div>
+                    ` : ''}
+                    ${actionButtons}
+                </div>
+            `;
+            
+            return card;
+        }
+
+        async function approveWithdrawal(withdrawalId) {
+            const notes = prompt('Add admin notes (optional):');
+            
+            if (!confirm('Approve this withdrawal request? The amount will be deducted from doctor\'s balance.')) {
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/admin/withdrawals/${withdrawalId}/approve`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        action: 'approve',
+                        admin_notes: notes || ''
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    alert('✅ Withdrawal approved! Amount deducted from doctor\'s balance.');
+                    loadAdminWithdrawals();
+                } else {
+                    alert(data.detail || 'Failed to approve withdrawal');
+                }
+            } catch (error) {
+                console.error('Error approving withdrawal:', error);
+                alert('Failed to approve withdrawal');
+            }
+        }
+
+        async function rejectWithdrawal(withdrawalId) {
+            const notes = prompt('Reason for rejection (required):');
+            
+            if (!notes || notes.trim() === '') {
+                alert('Please provide a reason for rejection');
+                return;
+            }
+            
+            if (!confirm('Reject this withdrawal request?')) {
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/admin/withdrawals/${withdrawalId}/approve`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        action: 'reject',
+                        admin_notes: notes
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    alert('❌ Withdrawal rejected.');
+                    loadAdminWithdrawals();
+                } else {
+                    alert(data.detail || 'Failed to reject withdrawal');
+                }
+            } catch (error) {
+                console.error('Error rejecting withdrawal:', error);
+                alert('Failed to reject withdrawal');
+            }
+        }
+
+        async function markAsProcessing(withdrawalId) {
+            const transactionId = prompt('Enter transaction/reference ID:');
+            
+            if (!transactionId || transactionId.trim() === '') {
+                alert('Transaction ID is required');
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/admin/withdrawals/${withdrawalId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        status: 'processing',
+                        transaction_id: transactionId
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    alert('✅ Marked as processing');
+                    loadAdminWithdrawals();
+                } else {
+                    alert(data.detail || 'Failed to update status');
+                }
+            } catch (error) {
+                console.error('Error updating status:', error);
+                alert('Failed to update status');
+            }
+        }
+
+        async function markAsCompleted(withdrawalId) {
+            if (!confirm('Mark this withdrawal as completed? This confirms the payment has been sent to the doctor.')) {
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/admin/withdrawals/${withdrawalId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        status: 'completed'
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    alert('✅ Withdrawal completed!');
+                    loadAdminWithdrawals();
+                } else {
+                    alert(data.detail || 'Failed to update status');
+                }
+            } catch (error) {
+                console.error('Error updating status:', error);
+                alert('Failed to update status');
+            }
+        }
+
         // Render Stats
         function renderStats(stats) {
             const grid = document.getElementById('statsGrid');
@@ -1096,9 +1475,16 @@
         // Load Doctor Appointments
         async function loadDoctorAppointments() {
             try {
+                document.getElementById('contentTitle').innerHTML = '<i class="fas fa-calendar-alt"></i> My Appointments';
+                
                 const res = await fetch('/doctor/appointments', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
+                
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                
                 const appointments = await res.json();
                 
                 // Update stats
@@ -1122,7 +1508,7 @@
                 }
                 
                 contentBody.innerHTML = '';
-                appointments.slice(0, 5).forEach(app => {
+                appointments.forEach(app => {
                     const card = document.createElement('div');
                     card.className = 'appointment-card';
                     
@@ -1144,11 +1530,36 @@
                         });
                     }
                     
+                    // Action buttons based on status
+                    let actionButtons = '';
+                    if (app.status === 'scheduled' && app.payment_status === 'paid') {
+                        actionButtons = `
+                            <div class="detail-item" style="grid-column: 1 / -1; margin-top: 10px;">
+                                <button onclick="markAppointmentComplete(${app.id})" 
+                                    style="width: 100%; padding: 12px; background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.3s;">
+                                    <i class="fas fa-check-circle"></i>
+                                    Mark as Completed
+                                </button>
+                            </div>
+                        `;
+                    } else if (app.status === 'completed') {
+                        actionButtons = `
+                            <div class="detail-item" style="grid-column: 1 / -1;">
+                                <div style="padding: 10px; background: #e8f5e9; border-radius: 8px; text-align: center; color: #2e7d32; font-weight: 600;">
+                                    <i class="fas fa-check-circle"></i> Consultation Completed
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
                     card.innerHTML = `
                         <div class="appointment-header">
                             <div>
                                 <div class="appointment-doctor">${app.patient_name}</div>
-                                <div class="appointment-specialty">Consultation</div>
+                                <div class="appointment-specialty">
+                                    <i class="fas fa-phone"></i> ${app.patient_phone || 'N/A'} • 
+                                    <i class="fas fa-envelope"></i> ${app.patient_email || 'N/A'}
+                                </div>
                             </div>
                             <span class="badge badge-${app.status}">${app.status}</span>
                         </div>
@@ -1161,12 +1572,64 @@
                                 <i class="fas fa-calendar"></i>
                                 <span>${appointmentDate}</span>
                             </div>
+                            <div class="detail-item">
+                                <i class="fas fa-${app.payment_status === 'paid' ? 'check-circle' : 'clock'}"></i>
+                                <span style="color: ${app.payment_status === 'paid' ? '#4caf50' : '#ff9800'}; font-weight: 600;">
+                                    ${app.payment_status === 'paid' ? 'Paid' : 'Pending Payment'}
+                                </span>
+                            </div>
+                            ${actionButtons}
                         </div>
                     `;
                     contentBody.appendChild(card);
                 });
             } catch (error) {
                 console.error('Error loading appointments:', error);
+                const contentBody = document.getElementById('contentBody');
+                contentBody.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle" style="color: #ff9800;"></i>
+                        <p>Failed to load appointments</p>
+                        <button onclick="loadDoctorAppointments()" style="margin-top: 15px; padding: 10px 20px; background: #1e88e5; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            <i class="fas fa-redo"></i> Retry
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // Mark Appointment as Complete
+        async function markAppointmentComplete(appointmentId) {
+            if (!confirm('Mark this appointment as completed?')) {
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/doctor/appointments/${appointmentId}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        status: 'completed'
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    alert('✅ Appointment marked as completed!');
+                    // Reload appointments
+                    loadDoctorAppointments();
+                    // Refresh stats
+                    initDoctorDashboard();
+                } else {
+                    alert(data.detail || 'Failed to update appointment status');
+                }
+            } catch (error) {
+                console.error('Error updating appointment:', error);
+                alert('Failed to update appointment status');
             }
         }
 
@@ -1656,7 +2119,7 @@
                                 <div class="appointment-doctor" style="font-size: 1.3rem;">
                                     <i class="fas fa-chart-line" style="color: #4caf50;"></i> Earnings Summary
                                 </div>
-                                <div class="appointment-specialty">Platform fee: ${earnings.platform_fee_percentage}% per consultation</div>
+                                <div class="appointment-specialty">Platform fee deducted at withdrawal (10-15%)</div>
                             </div>
                         </div>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 20px;">
@@ -1666,9 +2129,9 @@
                                 <div style="color: #6c757d; font-size: 0.85rem; margin-top: 5px;">${earnings.total_consultations} consultations</div>
                             </div>
                             <div style="background: white; padding: 20px; border-radius: 12px; border-left: 4px solid #ff9800;">
-                                <div style="color: #6c757d; font-size: 0.9rem; margin-bottom: 8px;">Platform Fees</div>
+                                <div style="color: #6c757d; font-size: 0.9rem; margin-bottom: 8px;">Platform Fees Paid</div>
                                 <div style="font-size: 2rem; font-weight: 700; color: #ff9800;">₹${earnings.platform_fees_paid.toFixed(0)}</div>
-                                <div style="color: #6c757d; font-size: 0.85rem; margin-top: 5px;">${earnings.platform_fee_percentage}% of revenue</div>
+                                <div style="color: #6c757d; font-size: 0.85rem; margin-top: 5px;">From withdrawals</div>
                             </div>
                             <div style="background: white; padding: 20px; border-radius: 12px; border-left: 4px solid #4caf50;">
                                 <div style="color: #6c757d; font-size: 0.9rem; margin-bottom: 8px;">Your Earnings</div>
@@ -1738,12 +2201,12 @@
                                     <span>Consultation: ₹${item.consultation_fee.toFixed(0)}</span>
                                 </div>
                                 <div class="detail-item">
-                                    <i class="fas fa-minus-circle"></i>
-                                    <span style="color: #ff9800;">Platform Fee: ₹${item.platform_fee.toFixed(0)}</span>
-                                </div>
-                                <div class="detail-item">
                                     <i class="fas fa-check-circle"></i>
-                                    <span style="color: #4caf50; font-weight: 600;">Your Earnings: ₹${item.your_earnings.toFixed(0)}</span>
+                                    <span style="color: #4caf50; font-weight: 600;">Earned: ₹${item.your_earnings.toFixed(0)}</span>
+                                </div>
+                                <div class="detail-item" style="grid-column: 1 / -1;">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span style="color: #6c757d; font-size: 0.85rem;">${item.note}</span>
                                 </div>
                             </div>
                         `;
@@ -1810,6 +2273,18 @@
                             </div>
                         </div>
                         
+                        <div style="background: #e3f2fd; padding: 15px; border-left: 4px solid #1e88e5; border-radius: 8px; margin: 20px 0;">
+                            <strong style="color: #1e88e5;"><i class="fas fa-info-circle"></i> Important:</strong>
+                            <p style="color: #212529; margin: 8px 0 0 0;">
+                                Please review our 
+                                <a href="/doctor-payment-terms" target="_blank" 
+                                    style="color: #1e88e5; font-weight: 600; text-decoration: underline;">
+                                    Payment Terms & Conditions
+                                </a>
+                                before requesting a withdrawal. Platform fees: 10% (first 2 withdrawals/day), 15% (3rd+ withdrawals/day).
+                            </p>
+                        </div>
+                        
                         <form id="withdrawalForm" style="margin-top: 25px;">
                             <div style="margin-bottom: 20px;">
                                 <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #212529;">
@@ -1873,6 +2348,21 @@
                                 </p>
                             </div>
                             
+                            <div style="background: #e3f2fd; padding: 20px; border-left: 4px solid #1e88e5; border-radius: 8px; margin-bottom: 20px;">
+                                <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
+                                    <input type="checkbox" id="acceptTerms" required 
+                                        style="margin-top: 4px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span style="color: #212529; line-height: 1.6;">
+                                        I have read and agree to the 
+                                        <a href="/doctor-payment-terms" target="_blank" 
+                                            style="color: #1e88e5; font-weight: 600; text-decoration: underline;">
+                                            Payment Terms & Conditions
+                                        </a>
+                                        including the platform fee structure (10% for first 2 withdrawals, 15% for 3rd+ withdrawals per day).
+                                    </span>
+                                </label>
+                            </div>
+                            
                             <div style="display: flex; gap: 15px;">
                                 <button type="button" onclick="showDoctorEarnings()" class="btn btn-outline" style="flex: 1;">
                                     <i class="fas fa-times"></i> Cancel
@@ -1903,6 +2393,12 @@
             const accountNumber = document.getElementById('accountNumber').value.trim();
             const ifscCode = document.getElementById('ifscCode').value.trim().toUpperCase();
             const bankName = document.getElementById('bankName').value.trim();
+            const acceptTerms = document.getElementById('acceptTerms').checked;
+            
+            if (!acceptTerms) {
+                alert('Please read and accept the Payment Terms & Conditions to proceed');
+                return;
+            }
             
             if (!accountHolder || !accountNumber || !ifscCode || !bankName) {
                 alert('Please fill in all bank details');
@@ -1980,6 +2476,11 @@
                 const res = await fetch('/doctor/withdrawals', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
+                
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                
                 const withdrawals = await res.json();
                 
                 document.getElementById('contentTitle').innerHTML = '<i class="fas fa-history"></i> Withdrawal History';
@@ -2006,9 +2507,10 @@
                     // Status colors
                     const statusColors = {
                         'pending': { bg: '#fff3e0', color: '#e65100', icon: 'fa-clock' },
+                        'approved': { bg: '#e8f5e9', color: '#2e7d32', icon: 'fa-check' },
                         'processing': { bg: '#e3f2fd', color: '#1976d2', icon: 'fa-spinner' },
-                        'completed': { bg: '#e8f5e9', color: '#2e7d32', icon: 'fa-check-circle' },
-                        'failed': { bg: '#ffebee', color: '#c62828', icon: 'fa-times-circle' }
+                        'completed': { bg: '#f3e5f5', color: '#6a1b9a', icon: 'fa-check-circle' },
+                        'rejected': { bg: '#ffebee', color: '#c62828', icon: 'fa-times-circle' }
                     };
                     
                     const statusStyle = statusColors[w.status] || statusColors['pending'];
@@ -2032,14 +2534,20 @@
                         timeZone: 'Asia/Kolkata'
                     }) + ' IST' : 'Not processed yet';
                     
+                    const penaltyBadge = w.is_penalty_applied ? 
+                        '<span class="badge" style="background: #ffebee; color: #c62828; margin-left: 10px;"><i class="fas fa-exclamation-triangle"></i> 15% Fee</span>' : 
+                        '<span class="badge" style="background: #e8f5e9; color: #2e7d32; margin-left: 10px;"><i class="fas fa-check"></i> 10% Fee</span>';
+                    
                     card.innerHTML = `
                         <div class="appointment-header">
                             <div>
                                 <div class="appointment-doctor">Withdrawal #${w.withdrawal_number}</div>
-                                <div class="appointment-specialty">₹${w.amount.toFixed(0)} to ${w.bank_name}</div>
+                                <div class="appointment-specialty">
+                                    ₹${w.gross_amount.toFixed(0)} → ₹${w.net_amount.toFixed(0)} to ${w.bank_name}
+                                </div>
                             </div>
                             <span class="badge" style="background: ${statusStyle.bg}; color: ${statusStyle.color};">
-                                <i class="fas ${statusStyle.icon}"></i> ${w.status}
+                                <i class="fas ${statusStyle.icon}"></i> ${w.status.toUpperCase()}
                             </span>
                         </div>
                         <div class="appointment-details">
@@ -2047,34 +2555,46 @@
                                 <i class="fas fa-calendar"></i>
                                 <span>Requested: ${requestedDate}</span>
                             </div>
-                            ${w.processed_date ? `
                             <div class="detail-item">
+                                <i class="fas fa-rupee-sign"></i>
+                                <span>Gross: ₹${w.gross_amount.toFixed(0)}</span>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-minus-circle"></i>
+                                <span style="color: #ff9800;">Fee: ₹${w.platform_fee.toFixed(0)} (${w.platform_fee_percentage}%)</span>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-wallet"></i>
+                                <span style="color: #4caf50; font-weight: 600;">Net: ₹${w.net_amount.toFixed(0)}</span>
+                            </div>
+                            <div class="detail-item" style="grid-column: 1 / -1;">
+                                <i class="fas fa-info-circle"></i>
+                                <span>Withdrawal ${w.withdrawal_count_today} of the day${penaltyBadge}</span>
+                            </div>
+                            ${w.processed_date ? `
+                            <div class="detail-item" style="grid-column: 1 / -1;">
                                 <i class="fas fa-check"></i>
                                 <span>Processed: ${processedDate}</span>
                             </div>
                             ` : ''}
-                            <div class="detail-item">
-                                <i class="fas fa-user"></i>
-                                <span>${w.account_holder_name}</span>
-                            </div>
-                            <div class="detail-item">
-                                <i class="fas fa-credit-card"></i>
-                                <span>A/C: ${w.account_number}</span>
-                            </div>
-                            <div class="detail-item">
-                                <i class="fas fa-university"></i>
-                                <span>${w.bank_name}</span>
+                            <div class="detail-item" style="grid-column: 1 / -1; background: #f8f9fa; padding: 10px; border-radius: 8px;">
+                                <div style="width: 100%;">
+                                    <div style="font-weight: 600; margin-bottom: 5px;"><i class="fas fa-university"></i> Bank Details</div>
+                                    <div style="font-size: 0.9rem;">
+                                        ${w.account_holder_name} • A/C: ${w.account_number} • ${w.bank_name}
+                                    </div>
+                                </div>
                             </div>
                             ${w.transaction_id ? `
-                            <div class="detail-item">
+                            <div class="detail-item" style="grid-column: 1 / -1;">
                                 <i class="fas fa-receipt"></i>
-                                <span>TXN: ${w.transaction_id}</span>
+                                <span><strong>Transaction ID:</strong> ${w.transaction_id}</span>
                             </div>
                             ` : ''}
                             ${w.notes ? `
-                            <div class="detail-item" style="grid-column: 1 / -1;">
+                            <div class="detail-item" style="grid-column: 1 / -1; background: #fff3e0; padding: 10px; border-radius: 8px;">
                                 <i class="fas fa-sticky-note"></i>
-                                <span>${w.notes}</span>
+                                <span><strong>Note:</strong> ${w.notes}</span>
                             </div>
                             ` : ''}
                         </div>
@@ -2083,7 +2603,16 @@
                 });
             } catch (error) {
                 console.error('Error loading withdrawal history:', error);
-                alert('Failed to load withdrawal history');
+                const contentBody = document.getElementById('contentBody');
+                contentBody.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle" style="color: #ff9800;"></i>
+                        <p>Failed to load withdrawal history</p>
+                        <button onclick="showWithdrawalHistory()" style="margin-top: 15px; padding: 10px 20px; background: #1e88e5; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            <i class="fas fa-redo"></i> Retry
+                        </button>
+                    </div>
+                `;
             }
         }
 
