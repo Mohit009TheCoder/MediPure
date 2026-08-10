@@ -2871,8 +2871,7 @@
             const summary = data.summary;
             const contentBody = document.getElementById('contentBody');
 
-            const role = currentUser ? currentUser.role : 'patient';
-            const isAdmin = role === 'admin';
+            const isAdmin = localStorage.getItem('role') === 'admin';
 
             let doctorFilterHtml = '';
             if (isAdmin) {
