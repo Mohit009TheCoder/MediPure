@@ -9,7 +9,7 @@ def seed():
     patient = database.User(
         full_name="Test Patient",
         email="patient@test.com",
-        password_hash=get_password_hash("patient123"),
+        hashed_password=get_password_hash("patient123"),
         role="patient",
         phone="1234567890",
         address="123 Patient St"
@@ -20,13 +20,15 @@ def seed():
     doctor = database.User(
         full_name="Dr. Test",
         email="doctor@test.com",
-        password_hash=get_password_hash("doctor123"),
+        hashed_password=get_password_hash("doctor123"),
         role="doctor",
         phone="0987654321",
         address="456 Doctor Ave",
         specialty="Cardiology",
         experience=10,
-        consultation_fee=500
+        consultation_fee=500,
+        is_verified=True,
+        is_approved=True
     )
     db.add(doctor)
     db.commit()
