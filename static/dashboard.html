@@ -494,6 +494,7 @@
             const actions = [
                 { icon: 'fa-search', text: 'Find Doctors', action: () => showSearchDoctors() },
                 { icon: 'fa-calendar-plus', text: 'Book Appointment', action: () => showSearchDoctors() },
+                { icon: 'fa-chart-pie', text: 'Visit Analytics', action: () => showPatientVisitAnalytics() },
                 { icon: 'fa-robot', text: 'AI Health Check', action: () => showAIHealth() },
                 { icon: 'fa-receipt', text: 'My Receipts', action: () => showMyReceipts() }
             ];
@@ -537,6 +538,7 @@
             // Quick Actions
             const actions = [
                 { icon: 'fa-clock', text: 'Manage Slots', action: () => showManageSlots() },
+                { icon: 'fa-chart-pie', text: 'Patient Analytics', action: () => showPatientVisitAnalytics() },
                 { icon: 'fa-wallet', text: 'My Earnings', action: () => showDoctorEarnings() },
                 { icon: 'fa-money-bill-wave', text: 'Withdraw Funds', action: () => showWithdrawalForm() },
                 { icon: 'fa-history', text: 'Withdrawal History', action: () => showWithdrawalHistory() },
@@ -575,6 +577,7 @@
                 const actions = [
                     { icon: 'fa-user-md', text: 'View All Doctors', action: () => loadAllDoctors() },
                     { icon: 'fa-users', text: 'View All Patients', action: () => loadAllPatients() },
+                    { icon: 'fa-chart-pie', text: 'Visit Analytics', action: () => showPatientVisitAnalytics() },
                     { icon: 'fa-calendar-alt', text: 'All Appointments', action: () => loadAllAppointments() },
                     { icon: 'fa-money-bill-wave', text: 'Withdrawal Requests', action: () => loadAdminWithdrawals() },
                     { icon: 'fa-chart-line', text: 'System Analytics', action: () => showSystemAnalytics(stats) }
@@ -2694,6 +2697,430 @@
                 });
             } catch (error) {
                 console.error('Error loading receipts:', error);
+            }
+        }
+
+        // ==================== PATIENT VISIT ANALYTICS BOARD ====================
+        let currentAnalyticsData = null;
+
+        async function showPatientVisitAnalytics(selectedDoctorId = null) {
+            document.getElementById('contentTitle').innerHTML = '<i class="fas fa-chart-pie"></i> Patient Visit Analytics Board';
+            const contentBody = document.getElementById('contentBody');
+            contentBody.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <i class="fas fa-spinner fa-spin fa-3x" style="color: #1e88e5;"></i>
+                    <p style="margin-top: 15px; color: #6c757d;">Loading patient visit analytics board...</p>
+                </div>
+            `;
+
+            try {
+                let url = '/analytics/patient-visits';
+                if (selectedDoctorId) {
+                    url += `?doctor_id=${selectedDoctorId}`;
+                }
+                const res = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!res.ok) {
+                    throw new Error('Failed to fetch analytics');
+                }
+                
+                currentAnalyticsData = await res.json();
+                renderAnalyticsBoard(currentAnalyticsData, selectedDoctorId);
+            } catch (error) {
+                console.error('Error loading patient visit analytics:', error);
+                contentBody.innerHTML = `
+                    <div style="text-align: center; padding: 40px; background: #fff5f5; border-radius: 12px; border: 1px solid #ffcdd2;">
+                        <i class="fas fa-exclamation-triangle fa-3x" style="color: #e53935; margin-bottom: 15px;"></i>
+                        <h3 style="color: #c62828;">Unable to Load Analytics</h3>
+                        <p style="color: #666;">There was an error generating the patient visit analytics board.</p>
+                        <button onclick="showPatientVisitAnalytics()" style="margin-top: 15px; padding: 10px 20px; background: #1e88e5; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Try Again</button>
+                    </div>
+                `;
+            }
+        }
+
+        function renderAnalyticsBoard(data, selectedDoctorId = null) {
+            const summary = data.summary;
+            const contentBody = document.getElementById('contentBody');
+
+            const role = currentUser ? currentUser.role : 'patient';
+            const isAdmin = role === 'admin';
+
+            let doctorFilterHtml = '';
+            if (isAdmin) {
+                doctorFilterHtml = `
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #495057; margin-bottom: 6px;">Filter by Doctor</label>
+                        <select id="analyticsDoctorSelect" onchange="showPatientVisitAnalytics(this.value)" style="width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.95rem; background: white;">
+                            <option value="">All Doctors (System-wide)</option>
+                        </select>
+                    </div>
+                `;
+            }
+
+            const firstTimePct = summary.total_unique_patients > 0 ? ((summary.first_time_patients_count / summary.total_unique_patients) * 100).toFixed(1) : 0;
+            const repeatOnly2Pct = summary.total_unique_patients > 0 ? (((summary.repeat_patients_count - summary.frequent_patients_count) / summary.total_unique_patients) * 100).toFixed(1) : 0;
+            const frequent3PlusPct = summary.total_unique_patients > 0 ? ((summary.frequent_patients_count / summary.total_unique_patients) * 100).toFixed(1) : 0;
+
+            contentBody.innerHTML = `
+                <!-- KPI Summary Cards Grid -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                    <div class="appointment-card" style="border-left: 5px solid #1e88e5; padding: 20px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.85rem; font-weight: 600; color: #6c757d; text-transform: uppercase;">Total Patients</span>
+                            <span style="width: 36px; height: 36px; border-radius: 50%; background: #e3f2fd; color: #1e88e5; display: flex; align-items: center; justify-content: center;"><i class="fas fa-users"></i></span>
+                        </div>
+                        <div style="font-size: 2.2rem; font-weight: 800; color: #212529; margin: 10px 0 4px 0;">${summary.total_unique_patients}</div>
+                        <div style="font-size: 0.85rem; color: #495057;">Total unique patients</div>
+                    </div>
+
+                    <div class="appointment-card" style="border-left: 5px solid #4caf50; padding: 20px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.85rem; font-weight: 600; color: #6c757d; text-transform: uppercase;">Repeat Visit Rate</span>
+                            <span style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center;"><i class="fas fa-redo-alt"></i></span>
+                        </div>
+                        <div style="font-size: 2.2rem; font-weight: 800; color: #2e7d32; margin: 10px 0 4px 0;">${summary.repeat_patient_percentage}%</div>
+                        <div style="font-size: 0.85rem; color: #495057;">${summary.repeat_patients_count} patients with 2+ visits</div>
+                    </div>
+
+                    <div class="appointment-card" style="border-left: 5px solid #ff9800; padding: 20px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.85rem; font-weight: 600; color: #6c757d; text-transform: uppercase;">Avg Visits / Patient</span>
+                            <span style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center;"><i class="fas fa-chart-line"></i></span>
+                        </div>
+                        <div style="font-size: 2.2rem; font-weight: 800; color: #e65100; margin: 10px 0 4px 0;">${summary.avg_visits_per_patient}</div>
+                        <div style="font-size: 0.85rem; color: #495057;">Across ${summary.total_appointments} total visits</div>
+                    </div>
+
+                    <div class="appointment-card" style="border-left: 5px solid #9c27b0; padding: 20px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.85rem; font-weight: 600; color: #6c757d; text-transform: uppercase;">Frequent Patients</span>
+                            <span style="width: 36px; height: 36px; border-radius: 50%; background: #f3e5f5; color: #7b1fa2; display: flex; align-items: center; justify-content: center;"><i class="fas fa-star"></i></span>
+                        </div>
+                        <div style="font-size: 2.2rem; font-weight: 800; color: #7b1fa2; margin: 10px 0 4px 0;">${summary.frequent_patients_count}</div>
+                        <div style="font-size: 0.85rem; color: #495057;">Patients with 3 or more visits</div>
+                    </div>
+                </div>
+
+                <!-- Visit Distribution Bar Section -->
+                <div style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid #e9ecef;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="margin: 0; color: #212529; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-layer-group" style="color: #1e88e5;"></i> Patient Visit Frequency Breakdown
+                        </h4>
+                        <span style="font-size: 0.85rem; color: #6c757d; font-weight: 500;">${summary.total_unique_patients} Unique Patients</span>
+                    </div>
+
+                    <!-- Segmented Progress Bar -->
+                    <div style="display: flex; height: 16px; border-radius: 8px; overflow: hidden; background: #e9ecef; margin-bottom: 14px;">
+                        <div style="width: ${firstTimePct}%; background: #2196f3; transition: width 0.5s;" title="First-Time (1 Visit): ${summary.first_time_patients_count} (${firstTimePct}%)"></div>
+                        <div style="width: ${repeatOnly2Pct}%; background: #4caf50; transition: width 0.5s;" title="Repeat (2 Visits): ${summary.repeat_patients_count - summary.frequent_patients_count} (${repeatOnly2Pct}%)"></div>
+                        <div style="width: ${frequent3PlusPct}%; background: #9c27b0; transition: width 0.5s;" title="Frequent (3+ Visits): ${summary.frequent_patients_count} (${frequent3PlusPct}%)"></div>
+                    </div>
+
+                    <div style="display: flex; flex-wrap: wrap; gap: 20px; font-size: 0.85rem;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="width: 12px; height: 12px; border-radius: 3px; background: #2196f3; display: inline-block;"></span>
+                            <span style="color: #495057; font-weight: 500;">1 Visit (First-Time): <strong>${summary.first_time_patients_count}</strong> (${firstTimePct}%)</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="width: 12px; height: 12px; border-radius: 3px; background: #4caf50; display: inline-block;"></span>
+                            <span style="color: #495057; font-weight: 500;">2 Visits (Repeat): <strong>${summary.repeat_patients_count - summary.frequent_patients_count}</strong> (${repeatOnly2Pct}%)</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="width: 12px; height: 12px; border-radius: 3px; background: #9c27b0; display: inline-block;"></span>
+                            <span style="color: #495057; font-weight: 500;">3+ Visits (Frequent): <strong>${summary.frequent_patients_count}</strong> (${frequent3PlusPct}%)</span>
+                        </div>
+                        <div style="margin-left: auto; display: flex; align-items: center; gap: 14px; color: #6c757d;">
+                            <span><i class="fas fa-hospital" style="color: #1e88e5;"></i> Physical: ${summary.physical_visits}</span>
+                            <span><i class="fas fa-video" style="color: #9c27b0;"></i> Video: ${summary.video_visits}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filter Controls Bar -->
+                <div style="background: #f8f9fa; border-radius: 12px; padding: 16px; margin-bottom: 20px; border: 1px solid #e9ecef; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;">
+                    <div style="flex: 2; min-width: 240px;">
+                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #495057; margin-bottom: 6px;">Search Patient</label>
+                        <div style="position: relative;">
+                            <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6c757d;"></i>
+                            <input type="text" id="analyticsSearchInput" oninput="filterAnalyticsTable()" placeholder="Search by patient name, email, or phone..." style="width: 100%; padding: 10px 14px 10px 36px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.95rem; background: white;">
+                        </div>
+                    </div>
+
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #495057; margin-bottom: 6px;">Visit Frequency Filter</label>
+                        <select id="analyticsFreqFilter" onchange="filterAnalyticsTable()" style="width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.95rem; background: white;">
+                            <option value="all">All Visit Frequencies</option>
+                            <option value="first_time">1 Visit Only (First-Time)</option>
+                            <option value="repeat">2+ Visits (Repeat Patients)</option>
+                            <option value="frequent">3+ Visits (Frequent Patients)</option>
+                        </select>
+                    </div>
+
+                    ${doctorFilterHtml}
+                </div>
+
+                <!-- Patients Analytics Table -->
+                <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid #e9ecef;">
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.92rem;">
+                            <thead>
+                                <tr style="background: #f8f9fa; border-bottom: 2px solid #e9ecef; color: #495057; font-weight: 600;">
+                                    <th style="padding: 14px 16px;">Patient Details</th>
+                                    <th style="padding: 14px 16px;">Visit Frequency</th>
+                                    <th style="padding: 14px 16px;">Doctor(s) Visited</th>
+                                    <th style="padding: 14px 16px;">Consultations</th>
+                                    <th style="padding: 14px 16px;">First / Last Visit</th>
+                                    <th style="padding: 14px 16px; text-align: center;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="analyticsTableBody">
+                                <!-- Populated by filterAnalyticsTable() -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            if (isAdmin) {
+                populateAnalyticsDoctorSelect(selectedDoctorId);
+            }
+
+            filterAnalyticsTable();
+        }
+
+        async function populateAnalyticsDoctorSelect(selectedDoctorId) {
+            try {
+                const res = await fetch('/admin/doctors', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const doctors = await res.json();
+                const select = document.getElementById('analyticsDoctorSelect');
+                if (select) {
+                    select.innerHTML = '<option value="">All Doctors (System-wide)</option>';
+                    doctors.forEach(doc => {
+                        const opt = document.createElement('option');
+                        opt.value = doc.id;
+                        opt.textContent = `Dr. ${doc.full_name} (${doc.specialty || 'General'})`;
+                        if (selectedDoctorId && String(selectedDoctorId) === String(doc.id)) {
+                            opt.selected = true;
+                        }
+                        select.appendChild(opt);
+                    });
+                }
+            } catch (e) {
+                console.error('Error fetching doctors list for analytics filter:', e);
+            }
+        }
+
+        function filterAnalyticsTable() {
+            if (!currentAnalyticsData || !currentAnalyticsData.patients) return;
+
+            const search = (document.getElementById('analyticsSearchInput')?.value || '').toLowerCase();
+            const freqFilter = document.getElementById('analyticsFreqFilter')?.value || 'all';
+
+            const tbody = document.getElementById('analyticsTableBody');
+            if (!tbody) return;
+
+            const filtered = currentAnalyticsData.patients.filter(p => {
+                const matchSearch = p.patient_name.toLowerCase().includes(search) ||
+                                    p.patient_email.toLowerCase().includes(search) ||
+                                    p.patient_phone.toLowerCase().includes(search);
+                if (!matchSearch) return false;
+
+                if (freqFilter === 'first_time' && p.total_visits !== 1) return false;
+                if (freqFilter === 'repeat' && p.total_visits < 2) return false;
+                if (freqFilter === 'frequent' && p.total_visits < 3) return false;
+
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px; color: #6c757d;">
+                            <i class="fas fa-user-slash fa-2x" style="margin-bottom: 10px; display: block; color: #adb5bd;"></i>
+                            No patient records match the selected filters.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(p => {
+                let badgeHtml = '';
+                if (p.total_visits === 1) {
+                    badgeHtml = `<span style="background: #e3f2fd; color: #1565c0; padding: 4px 10px; border-radius: 20px; font-weight: 600; font-size: 0.8rem; border: 1px solid #bbdefb;"><i class="fas fa-user-check"></i> 1 Visit (First-Time)</span>`;
+                } else if (p.total_visits === 2) {
+                    badgeHtml = `<span style="background: #e8f5e9; color: #2e7d32; padding: 4px 10px; border-radius: 20px; font-weight: 600; font-size: 0.8rem; border: 1px solid #c8e6c9;"><i class="fas fa-redo"></i> 2 Visits (Repeat)</span>`;
+                } else {
+                    badgeHtml = `<span style="background: #f3e5f5; color: #7b1fa2; padding: 4px 10px; border-radius: 20px; font-weight: 600; font-size: 0.8rem; border: 1px solid #e1bee7;"><i class="fas fa-star"></i> ${p.total_visits} Visits (Frequent)</span>`;
+                }
+
+                const doctorsListHtml = p.doctors_visited.map(d => 
+                    `<span style="background: #f1f3f5; color: #343a40; padding: 2px 8px; border-radius: 6px; font-size: 0.8rem; display: inline-block; margin: 2px;">
+                        Dr. ${d.doctor_name} (${d.visit_count}x)
+                    </span>`
+                ).join('');
+
+                const formatDate = (isoStr) => {
+                    if (!isoStr) return 'N/A';
+                    const dt = new Date(isoStr);
+                    return dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                };
+
+                return `
+                    <tr style="border-bottom: 1px solid #e9ecef; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                        <td style="padding: 14px 16px;">
+                            <div style="font-weight: 700; color: #212529; font-size: 0.95rem;">${p.patient_name}</div>
+                            <div style="font-size: 0.82rem; color: #6c757d;">${p.patient_email}</div>
+                            <div style="font-size: 0.8rem; color: #868e96; margin-top: 2px;"><i class="fas fa-phone-alt" style="font-size: 0.75rem;"></i> ${p.patient_phone}</div>
+                        </td>
+                        <td style="padding: 14px 16px;">
+                            ${badgeHtml}
+                        </td>
+                        <td style="padding: 14px 16px;">
+                            ${doctorsListHtml || '<span style="color:#adb5bd;">N/A</span>'}
+                        </td>
+                        <td style="padding: 14px 16px; font-size: 0.82rem; color: #495057;">
+                            <div><i class="fas fa-hospital" style="color: #1e88e5; width: 14px;"></i> Physical: <strong>${p.consultation_types.physical || 0}</strong></div>
+                            <div><i class="fas fa-video" style="color: #9c27b0; width: 14px;"></i> Video: <strong>${p.consultation_types.video || 0}</strong></div>
+                        </td>
+                        <td style="padding: 14px 16px; font-size: 0.82rem; color: #495057;">
+                            <div>First: <strong>${formatDate(p.first_visit_date)}</strong></div>
+                            <div>Latest: <strong style="color: #1e88e5;">${formatDate(p.last_visit_date)}</strong></div>
+                        </td>
+                        <td style="padding: 14px 16px; text-align: center;">
+                            <button onclick="showPatientTimelineModal(${p.patient_id})" style="padding: 8px 14px; background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%); color: white; border: none; border-radius: 6px; font-weight: 600; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(30,136,229,0.2);">
+                                <i class="fas fa-history"></i> Detailed History (${p.total_visits})
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function showPatientTimelineModal(patientId) {
+            if (!currentAnalyticsData || !currentAnalyticsData.patients) return;
+            const patient = currentAnalyticsData.patients.find(p => p.patient_id === patientId);
+            if (!patient) return;
+
+            let modal = document.getElementById('patientHistoryModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'patientHistoryModal';
+                modal.style.cssText = `
+                    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                    background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px);
+                    z-index: 9999; display: flex; align-items: center; justify-content: center;
+                    padding: 20px; opacity: 0; transition: opacity 0.3s ease; pointer-events: none;
+                `;
+                document.body.appendChild(modal);
+            }
+
+            const visitsTimelineHtml = patient.visit_history.map((v) => {
+                const dt = new Date(v.date);
+                const formattedDate = dt.toLocaleDateString('en-IN', {
+                    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata'
+                }) + ' IST';
+
+                let statusBadge = '';
+                if (v.status === 'completed') {
+                    statusBadge = `<span style="background: #e8f5e9; color: #2e7d32; padding: 4px 10px; border-radius: 12px; font-size: 0.78rem; font-weight: 600;"><i class="fas fa-check-circle"></i> Completed</span>`;
+                } else if (v.status === 'scheduled') {
+                    statusBadge = `<span style="background: #fff3e0; color: #e65100; padding: 4px 10px; border-radius: 12px; font-size: 0.78rem; font-weight: 600;"><i class="fas fa-clock"></i> Scheduled</span>`;
+                } else {
+                    statusBadge = `<span style="background: #ffebee; color: #c62828; padding: 4px 10px; border-radius: 12px; font-size: 0.78rem; font-weight: 600;"><i class="fas fa-times-circle"></i> Cancelled</span>`;
+                }
+
+                const typeBadge = v.appointment_type === 'video' 
+                    ? `<span style="background: #f3e5f5; color: #7b1fa2; padding: 3px 8px; border-radius: 6px; font-size: 0.78rem;"><i class="fas fa-video"></i> Video Consultation</span>`
+                    : `<span style="background: #e3f2fd; color: #1565c0; padding: 3px 8px; border-radius: 6px; font-size: 0.78rem;"><i class="fas fa-hospital"></i> In-Clinic Visit</span>`;
+
+                return `
+                    <div style="position: relative; padding-left: 28px; margin-bottom: 20px; border-left: 2px dashed #1e88e5;">
+                        <div style="position: absolute; left: -11px; top: 0; width: 20px; height: 20px; border-radius: 50%; background: #1e88e5; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; box-shadow: 0 0 0 4px white;">
+                            ${v.visit_number}
+                        </div>
+
+                        <div style="background: #f8f9fa; border-radius: 10px; padding: 14px 16px; border: 1px solid #e9ecef;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                                <div>
+                                    <span style="font-size: 0.75rem; font-weight: 700; color: #1e88e5; text-transform: uppercase; letter-spacing: 0.5px;">VISIT #${v.visit_number}</span>
+                                    <h5 style="margin: 2px 0 0 0; color: #212529; font-size: 1rem;">Dr. ${v.doctor_name}</h5>
+                                    <span style="font-size: 0.82rem; color: #6c757d;">${v.doctor_specialty}</span>
+                                </div>
+                                <div style="text-align: right;">
+                                    ${statusBadge}
+                                    <div style="margin-top: 4px; font-size: 0.95rem; font-weight: 700; color: #2e7d32;">₹${v.payment_amount}</div>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; font-size: 0.82rem; color: #495057; border-top: 1px solid #e9ecef; margin-top: 8px; padding-top: 8px;">
+                                <div><i class="far fa-calendar-alt" style="color: #6c757d;"></i> ${formattedDate}</div>
+                                <div>${typeBadge}</div>
+                                <div style="margin-left: auto; font-size: 0.78rem; color: #868e96;">Appt ID: #${v.appointment_id}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 16px; width: 100%; max-width: 650px; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.2); transform: scale(0.95); transition: transform 0.3s ease;">
+                    <div style="padding: 20px 24px; background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%); color: white; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700;"><i class="fas fa-user-clock"></i> Patient Visit History</h3>
+                            <div style="font-size: 0.85rem; opacity: 0.9; margin-top: 2px;">${patient.patient_name} (${patient.total_visits} Total Visits)</div>
+                        </div>
+                        <button onclick="closePatientTimelineModal()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                            &times;
+                        </button>
+                    </div>
+
+                    <div style="padding: 12px 24px; background: #f1f3f5; border-bottom: 1px solid #e9ecef; display: flex; flex-wrap: wrap; gap: 16px; font-size: 0.85rem; color: #495057;">
+                        <div><strong>Email:</strong> ${patient.patient_email}</div>
+                        <div><strong>Phone:</strong> ${patient.patient_phone}</div>
+                        <div><strong>Gender:</strong> ${patient.gender}</div>
+                        <div><strong>Blood Group:</strong> ${patient.blood_group}</div>
+                    </div>
+
+                    <div style="padding: 24px; overflow-y: auto; flex: 1;">
+                        <h4 style="margin-top: 0; margin-bottom: 16px; font-size: 0.95rem; color: #495057; display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-list-ol" style="color: #1e88e5;"></i> Complete Chronological Visit Timeline
+                        </h4>
+                        <div>
+                            ${visitsTimelineHtml}
+                        </div>
+                    </div>
+
+                    <div style="padding: 14px 24px; background: #f8f9fa; border-top: 1px solid #e9ecef; text-align: right;">
+                        <button onclick="closePatientTimelineModal()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            modal.style.pointerEvents = 'auto';
+            modal.style.opacity = '1';
+            setTimeout(() => {
+                const inner = modal.firstElementChild;
+                if (inner) inner.style.transform = 'scale(1)';
+            }, 10);
+        }
+
+        function closePatientTimelineModal() {
+            const modal = document.getElementById('patientHistoryModal');
+            if (modal) {
+                modal.style.opacity = '0';
+                modal.style.pointerEvents = 'none';
+                const inner = modal.firstElementChild;
+                if (inner) inner.style.transform = 'scale(0.95)';
             }
         }
     </script>

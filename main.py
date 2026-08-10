@@ -1534,6 +1534,160 @@ def get_patient_appointments(current_user: database.User = Depends(auth.get_curr
         })
     return result
 
+# Analytics & Patient Visit Tracking Endpoints
+@app.get("/analytics/patient-visits")
+def get_patient_visit_analytics(
+    doctor_id: Optional[int] = None,
+    current_user: database.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Returns analytics on patient visit frequency, repeat rates, and detailed visit timelines.
+    """
+    query = db.query(database.Appointment)
+    
+    if current_user.role == "doctor":
+        query = query.filter(database.Appointment.doctor_id == current_user.id)
+    elif current_user.role == "patient":
+        query = query.filter(database.Appointment.patient_id == current_user.id)
+    elif current_user.role == "admin" and doctor_id:
+        query = query.filter(database.Appointment.doctor_id == doctor_id)
+        
+    all_appointments = query.all()
+    
+    # Group appointments by patient_id
+    patient_appts = {}
+    for appt in all_appointments:
+        if appt.patient_id not in patient_appts:
+            patient_appts[appt.patient_id] = []
+        patient_appts[appt.patient_id].append(appt)
+        
+    patients_list = []
+    total_appointments = len(all_appointments)
+    repeat_patients_count = 0
+    first_time_patients_count = 0
+    frequent_patients_count = 0
+    
+    completed_visits = 0
+    scheduled_visits = 0
+    cancelled_visits = 0
+    
+    physical_count = 0
+    video_count = 0
+
+    for p_id, appts in patient_appts.items():
+        patient_user = db.query(database.User).filter(database.User.id == p_id).first()
+        if not patient_user:
+            continue
+            
+        # Sort appointments chronologically
+        appts_sorted = []
+        for appt in appts:
+            slot = db.query(database.Slot).filter(database.Slot.id == appt.slot_id).first()
+            time_val = slot.start_time if slot and slot.start_time else appt.created_at
+            appts_sorted.append((time_val, appt, slot))
+            
+        appts_sorted.sort(key=lambda x: x[0])
+        
+        visit_count = len(appts_sorted)
+        if visit_count == 1:
+            first_time_patients_count += 1
+            visit_category = "First-Time (1 Visit)"
+        elif visit_count == 2:
+            repeat_patients_count += 1
+            visit_category = "Repeat (2 Visits)"
+        else:
+            repeat_patients_count += 1
+            frequent_patients_count += 1
+            visit_category = f"Frequent ({visit_count} Visits)"
+            
+        doctors_visited_map = {}
+        status_breakdown = {"completed": 0, "scheduled": 0, "cancelled": 0}
+        consultation_types = {"physical": 0, "video": 0}
+        visit_history = []
+        
+        for idx, (t_val, appt, slot) in enumerate(appts_sorted, start=1):
+            doc = db.query(database.User).filter(database.User.id == appt.doctor_id).first()
+            doc_name = doc.full_name if doc else "Unknown Doctor"
+            doc_specialty = doc.specialty if doc else "General Physician"
+            
+            doctors_visited_map[doc_name] = doctors_visited_map.get(doc_name, 0) + 1
+            
+            st = appt.status or "scheduled"
+            if st in status_breakdown:
+                status_breakdown[st] += 1
+            if st == "completed":
+                completed_visits += 1
+            elif st == "scheduled":
+                scheduled_visits += 1
+            elif st == "cancelled":
+                cancelled_visits += 1
+                
+            atype = appt.appointment_type or "physical"
+            if atype in consultation_types:
+                consultation_types[atype] += 1
+            if atype == "physical":
+                physical_count += 1
+            else:
+                video_count += 1
+                
+            visit_history.append({
+                "visit_number": idx,
+                "appointment_id": appt.id,
+                "doctor_id": appt.doctor_id,
+                "doctor_name": doc_name,
+                "doctor_specialty": doc_specialty,
+                "date": t_val.isoformat() if t_val else appt.created_at.isoformat(),
+                "appointment_type": atype,
+                "status": st,
+                "payment_status": appt.payment_status,
+                "payment_amount": (appt.payment_amount / 100) if appt.payment_amount else (doc.consultation_fee if doc else 0)
+            })
+            
+        doctors_visited = [{"doctor_name": name, "visit_count": count} for name, count in doctors_visited_map.items()]
+        
+        patients_list.append({
+            "patient_id": patient_user.id,
+            "patient_name": patient_user.full_name,
+            "patient_email": patient_user.email,
+            "patient_phone": patient_user.phone or "N/A",
+            "gender": patient_user.gender or "N/A",
+            "blood_group": patient_user.blood_group or "N/A",
+            "disease_info": patient_user.disease_info or "None",
+            "total_visits": visit_count,
+            "visit_category": visit_category,
+            "first_visit_date": visit_history[0]["date"] if visit_history else None,
+            "last_visit_date": visit_history[-1]["date"] if visit_history else None,
+            "doctors_visited": doctors_visited,
+            "consultation_types": consultation_types,
+            "status_breakdown": status_breakdown,
+            "visit_history": visit_history
+        })
+
+    patients_list.sort(key=lambda x: x["total_visits"], reverse=True)
+    
+    total_unique_patients = len(patients_list)
+    repeat_pct = round((repeat_patients_count / total_unique_patients * 100), 1) if total_unique_patients > 0 else 0
+    avg_visits = round((total_appointments / total_unique_patients), 1) if total_unique_patients > 0 else 0
+    
+    return {
+        "summary": {
+            "total_unique_patients": total_unique_patients,
+            "total_appointments": total_appointments,
+            "repeat_patients_count": repeat_patients_count,
+            "repeat_patient_percentage": repeat_pct,
+            "avg_visits_per_patient": avg_visits,
+            "first_time_patients_count": first_time_patients_count,
+            "frequent_patients_count": frequent_patients_count,
+            "completed_visits": completed_visits,
+            "scheduled_visits": scheduled_visits,
+            "cancelled_visits": cancelled_visits,
+            "physical_visits": physical_count,
+            "video_visits": video_count
+        },
+        "patients": patients_list
+    }
+
 # Admin Endpoints
 @app.get("/admin/stats")
 def get_admin_stats(current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
