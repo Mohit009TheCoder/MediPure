@@ -42,6 +42,66 @@ def ist_to_utc(ist_dt):
         ist_dt = IST.localize(ist_dt)
     return ist_dt.astimezone(pytz.utc)
 
+async def automated_reminder_job():
+    """Background task running continuously to send reminders for next-day appointments."""
+    while True:
+        try:
+            db = next(database.get_db())
+            now = datetime.utcnow()
+            tomorrow = now + timedelta(days=1)
+            
+            # Find slots starting within the next 24 hours
+            slots = db.query(database.Slot).filter(
+                database.Slot.start_time <= tomorrow,
+                database.Slot.start_time >= now
+            ).all()
+            
+            slot_ids = [s.id for s in slots]
+            if slot_ids:
+                appointments = db.query(database.Appointment).filter(
+                    database.Appointment.slot_id.in_(slot_ids),
+                    database.Appointment.status == "scheduled",
+                    database.Appointment.reminder_sent == False
+                ).all()
+                
+                for appt in appointments:
+                    patient = db.query(database.User).filter(database.User.id == appt.patient_id).first()
+                    doctor = db.query(database.User).filter(database.User.id == appt.doctor_id).first()
+                    slot = db.query(database.Slot).filter(database.Slot.id == appt.slot_id).first()
+                    
+                    if patient and doctor and slot:
+                        time_ist = utc_to_ist(slot.start_time).strftime("%I:%M %p")
+                        date_ist = utc_to_ist(slot.start_time).strftime("%A, %b %d")
+                        
+                        title = f"AI Reminder: Upcoming Appointment"
+                        msg = f"Hello {patient.full_name.split()[0]}, this is an automated reminder that you have a {appt.appointment_type} consultation scheduled with Dr. {doctor.full_name} tomorrow ({date_ist}) at {time_ist}. Please ensure you are available 5 minutes prior."
+                        
+                        notification = database.Notification(
+                            user_id=patient.id,
+                            title=title,
+                            message=msg
+                        )
+                        db.add(notification)
+                        
+                        # Set reminder_sent to True to avoid duplicates
+                        appt.reminder_sent = True
+                        db.commit()
+                        
+        except Exception as e:
+            print(f"Error in automated reminder job: {e}")
+            try:
+                db.rollback()
+            except:
+                pass
+        
+        # Check every 60 seconds
+        await asyncio.sleep(60)
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(automated_reminder_job())
+
+
 def generate_receipt_number():
     """Generate unique receipt number"""
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
