@@ -83,6 +83,7 @@ class Appointment(Base):
     appointment_type = Column(String) # "video" or "physical"
     status = Column(String, default="scheduled") # scheduled, completed, cancelled
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    reminder_sent = Column(Boolean, default=False)
     
     # Payment fields
     payment_status = Column(String, default="pending") # pending, paid, failed, refunded
@@ -195,6 +196,18 @@ class Withdrawal(Base):
     # Relationship
     doctor = relationship("User", foreign_keys=[doctor_id])
     approved_by_admin = relationship("User", foreign_keys=[approved_by])
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    title = Column(String)
+    message = Column(String)
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    user = relationship("User", foreign_keys=[user_id])
 
 Base.metadata.create_all(bind=engine)
 
