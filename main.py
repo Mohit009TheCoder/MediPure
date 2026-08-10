@@ -1920,6 +1920,45 @@ def get_recent_activity(limit: int = 10, current_user: database.User = Depends(a
     return result
 
 # Frontend Routes
+# Notification Endpoints
+@app.get("/notifications")
+def get_notifications(current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    notifications = db.query(database.Notification).filter(
+        database.Notification.user_id == current_user.id
+    ).order_by(database.Notification.created_at.desc()).all()
+    
+    return [
+        {
+            "id": n.id,
+            "title": n.title,
+            "message": n.message,
+            "is_read": n.is_read,
+            "created_at": n.created_at.isoformat()
+        } for n in notifications
+    ]
+
+@app.put("/notifications/{notification_id}/read")
+def mark_notification_read(notification_id: int, current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    notification = db.query(database.Notification).filter(
+        database.Notification.id == notification_id,
+        database.Notification.user_id == current_user.id
+    ).first()
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    
+    notification.is_read = True
+    db.commit()
+    return {"message": "Notification marked as read"}
+
+@app.put("/notifications/read-all")
+def mark_all_notifications_read(current_user: database.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    db.query(database.Notification).filter(
+        database.Notification.user_id == current_user.id,
+        database.Notification.is_read == False
+    ).update({"is_read": True})
+    db.commit()
+    return {"message": "All notifications marked as read"}
+
 @app.get("/")
 def read_index():
     return FileResponse("static/index.html")

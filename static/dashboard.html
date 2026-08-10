@@ -377,6 +377,114 @@
             }
         }
     </style>
+    <style>
+        .notification-btn {
+            position: relative;
+            background: none;
+            border: none;
+            color: #495057;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 8px;
+            transition: color 0.3s;
+        }
+        .notification-btn:hover {
+            color: #1e88e5;
+        }
+        .notification-badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: #ff4757;
+            color: white;
+            font-size: 0.7rem;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 10px;
+            display: none;
+        }
+        .notification-dropdown {
+            position: absolute;
+            top: 60px;
+            right: 150px;
+            width: 350px;
+            max-height: 400px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            z-index: 2000;
+            display: none;
+            flex-direction: column;
+            border: 1px solid #e9ecef;
+        }
+        .notification-dropdown.active {
+            display: flex;
+        }
+        .notification-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9fa;
+            border-radius: 12px 12px 0 0;
+        }
+        .notification-header h3 {
+            margin: 0;
+            font-size: 1rem;
+            color: #2b3445;
+        }
+        .mark-all-read {
+            font-size: 0.8rem;
+            color: #1e88e5;
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+        .notification-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #f1f3f5;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .notification-item:hover {
+            background: #f8f9fa;
+        }
+        .notification-item.unread {
+            background: #e3f2fd;
+        }
+        .notification-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #2b3445;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .notification-title i {
+            color: #1e88e5;
+        }
+        .notification-message {
+            font-size: 0.85rem;
+            color: #495057;
+            margin: 0;
+            line-height: 1.4;
+        }
+        .notification-time {
+            font-size: 0.75rem;
+            color: #868e96;
+            margin-top: 8px;
+            display: block;
+        }
+        .empty-notifications {
+            padding: 30px;
+            text-align: center;
+            color: #868e96;
+            font-size: 0.9rem;
+        }
+    </style>
 </head>
 <body>
     <header style="background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 1000;">
