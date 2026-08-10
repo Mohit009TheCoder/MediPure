@@ -26,9 +26,7 @@ def seed():
         address="456 Doctor Ave",
         specialty="Cardiology",
         experience=10,
-        consultation_fee=500,
-        is_verified=True,
-        is_approved=True
+        consultation_fee=500
     )
     db.add(doctor)
     db.commit()
