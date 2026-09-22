@@ -1,9 +1,25 @@
 import database
 from auth import get_password_hash
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 def seed():
     db = next(database.get_db())
+    
+    # Check if users already exist
+    existing_patient = db.query(database.User).filter(database.User.email == "patient@test.com").first()
+    existing_doctor = db.query(database.User).filter(database.User.email == "doctor@test.com").first()
+    
+    if existing_patient or existing_doctor:
+        # Re-hash passwords to bcrypt if they're still SHA-256
+        for user, pwd in [(existing_patient, "patient123"), (existing_doctor, "doctor123")]:
+            if user:
+                pw = user.hashed_password  # Actual string value from DB
+                if pw and len(pw) == 64 and all(c in '0123456789abcdef' for c in pw):
+                    user.hashed_password = get_password_hash(pwd)
+                    print(f"Re-hashed password for {user.email} to bcrypt")
+        db.commit()
+        print("Users already exist — passwords upgraded if needed.")
+        return
     
     # Create patient
     patient = database.User(
@@ -31,8 +47,8 @@ def seed():
     db.add(doctor)
     db.commit()
 
-    # Create a slot for tomorrow (e.g. exactly 23 hours from now)
-    tomorrow = datetime.utcnow() + timedelta(hours=23)
+    # Create a slot for tomorrow
+    tomorrow = datetime.now(timezone.utc) + timedelta(hours=23)
     end_time = tomorrow + timedelta(minutes=30)
 
     slot = database.Slot(

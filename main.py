@@ -1,13 +1,16 @@
 from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from contextlib import asynccontextmanager
 import pytz
+import logging
 import database
 import auth
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 from typing import List, Optional
 import razorpay
 import razorpay_config
@@ -16,7 +19,70 @@ import hashlib
 import random
 import string
 import asyncio
-app = FastAPI(title="Medipure - Doctor Appointment System")
+import google_meet
+
+# --- Logging ---
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("medipure")
+
+# --- Lifespan (replaces deprecated on_event) ---
+async def _reminder_loop():
+    """Background task: send reminders for next-day appointments."""
+    while True:
+        try:
+            db = next(database.get_db())
+            now = datetime.now(timezone.utc)
+            tomorrow = now + timedelta(days=1)
+            slots = db.query(database.Slot).filter(
+                database.Slot.start_time <= tomorrow,
+                database.Slot.start_time >= now
+            ).all()
+            slot_ids = [s.id for s in slots]
+            if slot_ids:
+                appointments = db.query(database.Appointment).filter(
+                    database.Appointment.slot_id.in_(slot_ids),
+                    database.Appointment.status == "scheduled",
+                    database.Appointment.reminder_sent == False
+                ).all()
+                for appt in appointments:
+                    patient = db.query(database.User).filter(database.User.id == appt.patient_id).first()
+                    doctor = db.query(database.User).filter(database.User.id == appt.doctor_id).first()
+                    slot = db.query(database.Slot).filter(database.Slot.id == appt.slot_id).first()
+                    if patient and doctor and slot:
+                        time_ist = utc_to_ist(slot.start_time).strftime("%I:%M %p")
+                        date_ist = utc_to_ist(slot.start_time).strftime("%A, %b %d")
+                        title = "AI Reminder: Upcoming Appointment"
+                        msg = f"Hello {patient.full_name.split()[0]}, this is an automated reminder that you have a {appt.appointment_type} consultation scheduled with Dr. {doctor.full_name} tomorrow ({date_ist}) at {time_ist}. Please ensure you are available 5 minutes prior."
+                        notification = database.Notification(user_id=patient.id, title=title, message=msg)
+                        db.add(notification)
+                        appt.reminder_sent = True
+                        db.commit()
+        except Exception as e:
+            logger.error(f"Reminder job error: {e}")
+            try:
+                db.rollback()
+            except Exception:
+                pass
+        await asyncio.sleep(60)
+
+@asynccontextmanager
+async def lifespan(app):
+    logger.info("Medipure starting up...")
+    task = asyncio.create_task(_reminder_loop())
+    yield
+    task.cancel()
+    logger.info("Medipure shutting down.")
+
+app = FastAPI(title="Medipure - Doctor Appointment System", lifespan=lifespan)
+
+# --- CORS ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Initialize Razorpay client
 razorpay_client = razorpay.Client(auth=(razorpay_config.RAZORPAY_KEY_ID, razorpay_config.RAZORPAY_KEY_SECRET))
@@ -42,64 +108,7 @@ def ist_to_utc(ist_dt):
         ist_dt = IST.localize(ist_dt)
     return ist_dt.astimezone(pytz.utc)
 
-async def automated_reminder_job():
-    """Background task running continuously to send reminders for next-day appointments."""
-    while True:
-        try:
-            db = next(database.get_db())
-            now = datetime.utcnow()
-            tomorrow = now + timedelta(days=1)
-            
-            # Find slots starting within the next 24 hours
-            slots = db.query(database.Slot).filter(
-                database.Slot.start_time <= tomorrow,
-                database.Slot.start_time >= now
-            ).all()
-            
-            slot_ids = [s.id for s in slots]
-            if slot_ids:
-                appointments = db.query(database.Appointment).filter(
-                    database.Appointment.slot_id.in_(slot_ids),
-                    database.Appointment.status == "scheduled",
-                    database.Appointment.reminder_sent == False
-                ).all()
-                
-                for appt in appointments:
-                    patient = db.query(database.User).filter(database.User.id == appt.patient_id).first()
-                    doctor = db.query(database.User).filter(database.User.id == appt.doctor_id).first()
-                    slot = db.query(database.Slot).filter(database.Slot.id == appt.slot_id).first()
-                    
-                    if patient and doctor and slot:
-                        time_ist = utc_to_ist(slot.start_time).strftime("%I:%M %p")
-                        date_ist = utc_to_ist(slot.start_time).strftime("%A, %b %d")
-                        
-                        title = f"AI Reminder: Upcoming Appointment"
-                        msg = f"Hello {patient.full_name.split()[0]}, this is an automated reminder that you have a {appt.appointment_type} consultation scheduled with Dr. {doctor.full_name} tomorrow ({date_ist}) at {time_ist}. Please ensure you are available 5 minutes prior."
-                        
-                        notification = database.Notification(
-                            user_id=patient.id,
-                            title=title,
-                            message=msg
-                        )
-                        db.add(notification)
-                        
-                        # Set reminder_sent to True to avoid duplicates
-                        appt.reminder_sent = True
-                        db.commit()
-                        
-        except Exception as e:
-            print(f"Error in automated reminder job: {e}")
-            try:
-                db.rollback()
-            except:
-                pass
-        
-        # Check every 60 seconds
-        await asyncio.sleep(60)
 
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(automated_reminder_job())
 
 
 def generate_receipt_number():
@@ -164,7 +173,7 @@ def update_doctor_earnings(db: Session, doctor_id: int, consultation_fee: int):
     earnings.total_revenue += consultation_fee
     earnings.total_earnings += consultation_fee  # Full amount
     earnings.pending_amount += consultation_fee  # Full amount available
-    earnings.last_updated = datetime.utcnow()
+    earnings.last_updated = datetime.now(timezone.utc)
     
     db.commit()
     return consultation_fee  # Return full amount
@@ -181,20 +190,16 @@ def get_withdrawal_count_today(db: Session, doctor_id: int):
     ).count()
     
     return count
-    earnings.last_updated = datetime.utcnow()
-    
-    db.commit()
-    return platform_fee, doctor_earnings
 
 # Mount static files for the frontend
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Schemas
 class UserCreate(BaseModel):
-    email: str
-    password: str
-    full_name: str
-    role: str # admin, doctor, patient
+    email: EmailStr
+    password: str = Field(min_length=6, max_length=128)
+    full_name: str = Field(min_length=2, max_length=100)
+    role: str = Field(pattern="^(admin|doctor|patient)$")
     
     # Common fields
     phone: Optional[str] = None
@@ -256,7 +261,7 @@ class WithdrawalRequest(BaseModel):
 # AI Automation: Alert System
 def send_ai_alert(email: str, message: str):
     # This simulates an AI alert system (Email/SMS/Push)
-    print(f"AI ALERT to {email}: {message}")
+    logger.info(f"AI ALERT to {email}: {message}")
 
 @app.post("/register")
 def register(user: UserCreate, db: Session = Depends(database.get_db)):
@@ -328,18 +333,13 @@ def add_slot(slot: SlotCreate, current_user: database.User = Depends(auth.get_cu
     if current_user.role != "doctor":
         raise HTTPException(status_code=403, detail="Only doctors can add slots")
     
-    print(f"=== ADDING SLOT ===")
-    print(f"Doctor ID: {current_user.id}")
-    print(f"Start time received: {slot.start_time}")
-    print(f"End time received: {slot.end_time}")
-    print(f"Start time type: {type(slot.start_time)}")
+    logger.info(f"Adding slot for doctor {current_user.id}: {slot.start_time} - {slot.end_time}")
     
     # Store datetime as-is (remove tzinfo if present)
     start_utc = slot.start_time.replace(tzinfo=None) if slot.start_time.tzinfo else slot.start_time
     end_utc = slot.end_time.replace(tzinfo=None) if slot.end_time.tzinfo else slot.end_time
     
-    print(f"Start time to store: {start_utc}")
-    print(f"End time to store: {end_utc}")
+    logger.debug(f"Slot times to store: {start_utc} - {end_utc}")
     
     new_slot = database.Slot(
         doctor_id=current_user.id,
@@ -347,14 +347,13 @@ def add_slot(slot: SlotCreate, current_user: database.User = Depends(auth.get_cu
         end_time=end_utc
     )
     
-    print(f"Slot object created: {new_slot}")
+    logger.debug(f"Slot object created: {new_slot}")
     
     db.add(new_slot)
     db.commit()
     db.refresh(new_slot)
     
-    print(f"Slot saved with ID: {new_slot.id}")
-    print(f"=== SLOT ADDED SUCCESSFULLY ===")
+    logger.info(f"Slot {new_slot.id} saved for doctor {current_user.id}")
     
     return {
         "message": "Slot added successfully",
@@ -369,7 +368,7 @@ def get_my_slots(current_user: database.User = Depends(auth.get_current_user), d
         raise HTTPException(status_code=403, detail="Only doctors can view their slots")
     
     # Get current time in UTC for comparison
-    now_utc = datetime.utcnow()
+    now_utc = datetime.now(timezone.utc)
     
     slots = db.query(database.Slot).filter(database.Slot.doctor_id == current_user.id).order_by(database.Slot.start_time).all()
     result = []
@@ -490,7 +489,8 @@ def get_doctor_appointments(current_user: database.User = Depends(auth.get_curre
             "appointment_type": appt.appointment_type,
             "status": appt.status,
             "payment_status": appt.payment_status,
-            "created_at": appt.created_at.isoformat()
+            "created_at": appt.created_at.isoformat(),
+            "meet_link": appt.meet_link
         })
     return result
 
@@ -568,7 +568,7 @@ def update_appointment_status(
             earnings.total_revenue += consultation_fee
             earnings.total_earnings += consultation_fee
             earnings.pending_amount += consultation_fee
-            earnings.last_updated = datetime.utcnow()
+            earnings.last_updated = datetime.now(timezone.utc)
     
     db.commit()
     
@@ -669,7 +669,7 @@ def get_doctor_profile(doctor_id: int, db: Session = Depends(database.get_db)):
 def get_doctor_slots(doctor_id: int, db: Session = Depends(database.get_db)):
     """Get available slots for a doctor (only future slots that are not booked)"""
     # Get current time in UTC for comparison
-    now_utc = datetime.utcnow()
+    now_utc = datetime.now(timezone.utc)
     
     # Filter: not booked AND start time is in the future
     slots = db.query(database.Slot).filter(
@@ -702,7 +702,7 @@ def create_appointment_order(appt: AppointmentCreate, current_user: database.Use
         raise HTTPException(status_code=400, detail="Slot unavailable")
     
     # Check if slot is in the past
-    now_utc = datetime.utcnow()
+    now_utc = datetime.now(timezone.utc)
     if slot.start_time <= now_utc:
         raise HTTPException(status_code=400, detail="Cannot book past time slots")
     
@@ -798,7 +798,7 @@ def verify_payment(payment: PaymentVerification, current_user: database.User = D
     appointment.razorpay_payment_id = payment.razorpay_payment_id
     appointment.razorpay_signature = payment.razorpay_signature
     appointment.payment_status = "paid"
-    appointment.payment_date = datetime.utcnow()
+    appointment.payment_date = datetime.now(timezone.utc)
     appointment.status = "scheduled"
     
     # Mark slot as booked
@@ -850,10 +850,49 @@ def verify_payment(payment: PaymentVerification, current_user: database.User = D
     
     # Update doctor earnings (full amount, no fee yet)
     update_doctor_earnings(db, appointment.doctor_id, consultation_fee)
-    db.refresh(receipt)
     
-    # Update doctor earnings
-    update_doctor_earnings(db, appointment.doctor_id, consultation_fee)
+    # --- Google Meet: Create Meet link for video consultations ---
+    meet_result = None
+    if appointment.appointment_type == "video" and slot:
+        try:
+            patient_email = current_user.email
+            doctor_email = doctor.email if doctor else None
+            attendees = [patient_email]
+            if doctor_email:
+                attendees.append(doctor_email)
+            
+            slot_start_ist = utc_to_ist(slot.start_time)
+            slot_end_ist = utc_to_ist(slot.end_time)
+            
+            event_summary = f"Medipure: Video Consultation - Dr. {doctor.full_name} & {current_user.full_name}"
+            event_description = (
+                f"Video consultation booked via Medipure\n"
+                f"Doctor: Dr. {doctor.full_name} ({doctor.specialty})\n"
+                f"Patient: {current_user.full_name}\n"
+                f"Appointment ID: {appointment.id}\n"
+                f"Receipt: {receipt_number}\n\n"
+                f"Please join the meeting on time."
+            )
+            
+            meet_result = google_meet.create_meet_event(
+                summary=event_summary,
+                description=event_description,
+                start_time=slot_start_ist,
+                end_time=slot_end_ist,
+                attendee_emails=attendees,
+                timezone="Asia/Kolkata"
+            )
+            
+            if meet_result and meet_result.get("meet_link"):
+                appointment.meet_link = meet_result["meet_link"]
+                appointment.calendar_event_id = meet_result.get("event_id")
+                db.commit()
+                logger.info(f"Meet link created for appointment {appointment.id}: {meet_result['meet_link']}")
+            else:
+                logger.warning(f"Could not create Meet link for appointment {appointment.id}")
+        except Exception as e:
+            logger.error(f"Meet link creation error: {e}")
+            # Don't fail the payment flow if Meet creation fails
     
     return {
         "success": True,
@@ -864,7 +903,8 @@ def verify_payment(payment: PaymentVerification, current_user: database.User = D
         "receipt_number": receipt_number,
         "doctor_name": doctor.full_name if doctor else "Unknown",
         "appointment_type": appointment.appointment_type,
-        "status": appointment.status
+        "status": appointment.status,
+        "meet_link": appointment.meet_link
     }
 
 @app.post("/appointments/book")
@@ -897,8 +937,149 @@ def get_payment_status(appointment_id: int, current_user: database.User = Depend
         "payment_amount": appointment.payment_amount / 100 if appointment.payment_amount else 0,  # Convert to rupees
         "razorpay_order_id": appointment.razorpay_order_id,
         "razorpay_payment_id": appointment.razorpay_payment_id,
-        "payment_date": appointment.payment_date.isoformat() if appointment.payment_date else None
+        "payment_date": appointment.payment_date.isoformat() if appointment.payment_date else None,
+        "meet_link": appointment.meet_link
     }
+
+# ---- Google Meet Endpoints ----
+
+@app.post("/appointments/{appointment_id}/create-meet")
+def create_meet_for_appointment(
+    appointment_id: int,
+    current_user: database.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """Create / regenerate Google Meet link for a video appointment (doctor or patient)."""
+    appointment = db.query(database.Appointment).filter(
+        database.Appointment.id == appointment_id
+    ).first()
+    
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    
+    # Only doctor or patient of this appointment can create meet
+    if current_user.id not in [appointment.patient_id, appointment.doctor_id] and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if appointment.appointment_type != "video":
+        raise HTTPException(status_code=400, detail="Meet links are only for video consultations")
+    
+    if appointment.payment_status != "paid":
+        raise HTTPException(status_code=400, detail="Appointment must be paid before creating a meet link")
+    
+    # Delete old calendar event if regenerating
+    if appointment.calendar_event_id:
+        try:
+            google_meet.delete_meet_event(appointment.calendar_event_id)
+        except Exception:
+            pass
+    
+    doctor = db.query(database.User).filter(database.User.id == appointment.doctor_id).first()
+    patient = db.query(database.User).filter(database.User.id == appointment.patient_id).first()
+    slot = db.query(database.Slot).filter(database.Slot.id == appointment.slot_id).first()
+    
+    if not doctor or not patient or not slot:
+        raise HTTPException(status_code=400, detail="Missing appointment details")
+    
+    slot_start_ist = utc_to_ist(slot.start_time)
+    slot_end_ist = utc_to_ist(slot.end_time)
+    
+    attendees = [patient.email]
+    if doctor.email:
+        attendees.append(doctor.email)
+    
+    event_summary = f"Medipure: Video Consultation - Dr. {doctor.full_name} & {patient.full_name}"
+    event_description = (
+        f"Video consultation booked via Medipure\n"
+        f"Doctor: Dr. {doctor.full_name} ({doctor.specialty})\n"
+        f"Patient: {patient.full_name}\n"
+        f"Appointment ID: {appointment.id}\n\n"
+        f"Please join the meeting on time."
+    )
+    
+    meet_result = google_meet.create_meet_event(
+        summary=event_summary,
+        description=event_description,
+        start_time=slot_start_ist,
+        end_time=slot_end_ist,
+        attendee_emails=attendees,
+        timezone="Asia/Kolkata"
+    )
+    
+    if not meet_result or not meet_result.get("meet_link"):
+        raise HTTPException(status_code=500, detail="Failed to create Google Meet link. Check Google OAuth setup.")
+    
+    appointment.meet_link = meet_result["meet_link"]
+    appointment.calendar_event_id = meet_result.get("event_id")
+    db.commit()
+    
+    return {
+        "success": True,
+        "meet_link": meet_result["meet_link"],
+        "event_id": meet_result.get("event_id"),
+        "calendar_link": meet_result.get("html_link"),
+        "appointment_id": appointment.id
+    }
+
+
+@app.get("/appointments/{appointment_id}/meet")
+def get_meet_link(
+    appointment_id: int,
+    current_user: database.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """Get the Google Meet link for an appointment."""
+    appointment = db.query(database.Appointment).filter(
+        database.Appointment.id == appointment_id
+    ).first()
+    
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    
+    if current_user.id not in [appointment.patient_id, appointment.doctor_id] and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if not appointment.meet_link:
+        raise HTTPException(status_code=404, detail="No Meet link for this appointment. Create one first.")
+    
+    slot = db.query(database.Slot).filter(database.Slot.id == appointment.slot_id).first()
+    
+    return {
+        "appointment_id": appointment.id,
+        "meet_link": appointment.meet_link,
+        "appointment_type": appointment.appointment_type,
+        "status": appointment.status,
+        "start_time": slot.start_time.isoformat() if slot else None,
+        "end_time": slot.end_time.isoformat() if slot else None
+    }
+
+
+@app.delete("/appointments/{appointment_id}/meet")
+def delete_meet_for_appointment(
+    appointment_id: int,
+    current_user: database.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """Delete the Google Meet / Calendar event for an appointment (e.g. on cancellation)."""
+    appointment = db.query(database.Appointment).filter(
+        database.Appointment.id == appointment_id
+    ).first()
+    
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    
+    if current_user.id not in [appointment.patient_id, appointment.doctor_id] and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if not appointment.calendar_event_id:
+        raise HTTPException(status_code=404, detail="No calendar event to delete")
+    
+    google_meet.delete_meet_event(appointment.calendar_event_id)
+    appointment.meet_link = None
+    appointment.calendar_event_id = None
+    db.commit()
+    
+    return {"success": True, "message": "Meet link removed"}
 
 # Receipt Endpoints
 @app.get("/receipts/{receipt_id}")
@@ -1207,7 +1388,7 @@ def request_withdrawal(withdrawal: WithdrawalRequest, current_user: database.Use
         account_number=withdrawal.account_number,
         ifsc_code=withdrawal.ifsc_code,
         bank_name=withdrawal.bank_name,
-        requested_date=datetime.utcnow(),
+        requested_date=datetime.now(timezone.utc),
         withdrawal_count_today=withdrawal_count_today + 1,
         is_penalty_applied=fee_calc['is_penalty']
     )
@@ -1376,12 +1557,12 @@ def approve_withdrawal(withdrawal_id: int, approval: WithdrawalApproval, current
         
         # Update withdrawal status
         withdrawal.status = "approved"
-        withdrawal.approved_date = datetime.utcnow()
+        withdrawal.approved_date = datetime.now(timezone.utc)
         withdrawal.approved_by = current_user.id
         if approval.admin_notes:
             withdrawal.admin_notes = approval.admin_notes
         
-        earnings.last_updated = datetime.utcnow()
+        earnings.last_updated = datetime.now(timezone.utc)
         
         db.commit()
         
@@ -1400,7 +1581,7 @@ def approve_withdrawal(withdrawal_id: int, approval: WithdrawalApproval, current
     elif approval.action == "reject":
         # Reject withdrawal - no balance changes
         withdrawal.status = "rejected"
-        withdrawal.approved_date = datetime.utcnow()
+        withdrawal.approved_date = datetime.now(timezone.utc)
         withdrawal.approved_by = current_user.id
         if approval.admin_notes:
             withdrawal.admin_notes = approval.admin_notes
@@ -1443,7 +1624,7 @@ def update_withdrawal_status(withdrawal_id: int, update: WithdrawalUpdate, curre
     # Update status
     old_status = withdrawal.status
     withdrawal.status = update.status
-    withdrawal.processed_date = datetime.utcnow()
+    withdrawal.processed_date = datetime.now(timezone.utc)
     
     if update.transaction_id:
         withdrawal.transaction_id = update.transaction_id
@@ -1459,7 +1640,7 @@ def update_withdrawal_status(withdrawal_id: int, update: WithdrawalUpdate, curre
         
         if earnings:
             earnings.withdrawn_amount += withdrawal.net_amount  # Net amount paid to doctor
-            earnings.last_updated = datetime.utcnow()
+            earnings.last_updated = datetime.now(timezone.utc)
     
     # If payment failed, refund to doctor's pending amount
     elif update.status == "failed":
@@ -1476,7 +1657,7 @@ def update_withdrawal_status(withdrawal_id: int, update: WithdrawalUpdate, curre
             if withdrawal.is_penalty_applied:
                 penalty_amount = int(withdrawal.gross_amount * 5 / 100)
                 earnings.penalty_fees_collected -= penalty_amount
-            earnings.last_updated = datetime.utcnow()
+            earnings.last_updated = datetime.now(timezone.utc)
     
     db.commit()
     
@@ -1590,7 +1771,8 @@ def get_patient_appointments(current_user: database.User = Depends(auth.get_curr
             "payment_status": appt.payment_status,
             "payment_amount": appt.payment_amount / 100 if appt.payment_amount else 0,
             "razorpay_payment_id": appt.razorpay_payment_id,
-            "created_at": appt.created_at.isoformat()
+            "created_at": appt.created_at.isoformat(),
+            "meet_link": appt.meet_link
         })
     return result
 
@@ -1887,7 +2069,8 @@ def get_all_appointments(current_user: database.User = Depends(auth.get_current_
             "appointment_type": appt.appointment_type,
             "status": appt.status,
             "created_at": appt.created_at.isoformat(),
-            "consultation_fee": doctor.consultation_fee if doctor else 0
+            "consultation_fee": doctor.consultation_fee if doctor else 0,
+            "meet_link": appt.meet_link
         })
     return result
 
@@ -1914,7 +2097,8 @@ def get_recent_activity(limit: int = 10, current_user: database.User = Depends(a
             "appointment_type": appt.appointment_type,
             "status": appt.status,
             "start_time": slot.start_time.isoformat() if slot else None,
-            "created_at": appt.created_at.isoformat()
+            "created_at": appt.created_at.isoformat(),
+            "meet_link": appt.meet_link
         })
     
     return result

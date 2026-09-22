@@ -82,7 +82,7 @@ class Appointment(Base):
     slot_id = Column(Integer, ForeignKey("slots.id"))
     appointment_type = Column(String) # "video" or "physical"
     status = Column(String, default="scheduled") # scheduled, completed, cancelled
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
     reminder_sent = Column(Boolean, default=False)
     
     # Payment fields
@@ -92,6 +92,10 @@ class Appointment(Base):
     razorpay_payment_id = Column(String, nullable=True)
     razorpay_signature = Column(String, nullable=True)
     payment_date = Column(DateTime, nullable=True)
+    
+    # Google Meet integration (video consultations only)
+    meet_link = Column(String, nullable=True)  # Google Meet URL
+    calendar_event_id = Column(String, nullable=True)  # Google Calendar event ID
 
     patient = relationship("User", foreign_keys=[patient_id])
     doctor = relationship("User", foreign_keys=[doctor_id])
@@ -113,7 +117,7 @@ class PaymentReceipt(Base):
     razorpay_order_id = Column(String)
     
     # Receipt details
-    receipt_date = Column(DateTime, default=datetime.datetime.utcnow)
+    receipt_date = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
     tax_amount = Column(Integer, default=0)  # Tax in paise
     discount_amount = Column(Integer, default=0)  # Discount in paise
     total_amount = Column(Integer)  # Total in paise
@@ -155,7 +159,7 @@ class DoctorEarnings(Base):
     penalty_fees_collected = Column(Integer, default=0)  # Extra 5% from 3rd+ withdrawals
     
     # Timestamps
-    last_updated = Column(DateTime, default=datetime.datetime.utcnow)
+    last_updated = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
     
     # Relationship
     doctor = relationship("User", foreign_keys=[doctor_id])
@@ -181,7 +185,7 @@ class Withdrawal(Base):
     bank_name = Column(String)
     
     # Processing details
-    requested_date = Column(DateTime, default=datetime.datetime.utcnow)
+    requested_date = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
     approved_date = Column(DateTime, nullable=True)  # When admin approved
     processed_date = Column(DateTime, nullable=True)  # When payment completed
     approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)  # Admin who approved
@@ -205,7 +209,7 @@ class Notification(Base):
     title = Column(String)
     message = Column(String)
     is_read = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
     
     user = relationship("User", foreign_keys=[user_id])
 

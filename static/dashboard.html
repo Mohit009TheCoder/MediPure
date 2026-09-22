@@ -1001,6 +1001,7 @@
                                 <span>Booked: ${bookedDate}</span>
                             </div>
                         </div>
+                        ${getMeetButton(appt)}
                     `;
                     contentBody.appendChild(card);
                 });
@@ -1595,6 +1596,7 @@
                                 </button>
                             </div>
                             ` : ''}
+                            ${getMeetButton(app)}
                         </div>
                     `;
                     contentBody.appendChild(card);
@@ -2227,6 +2229,76 @@
         // View Receipt Function
         function viewReceipt(appointmentId) {
             window.location.href = `/receipt?appointment_id=${appointmentId}`;
+        }
+
+        // Google Meet Functions
+        async function joinMeeting(meetLink) {
+            if (meetLink) {
+                window.open(meetLink, '_blank');
+            }
+        }
+
+        async function createMeetLink(appointmentId, btnElement) {
+            if (btnElement) {
+                btnElement.disabled = true;
+                btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+            }
+            try {
+                const res = await fetch(`/appointments/${appointmentId}/create-meet`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (res.ok && data.meet_link) {
+                    // Update button to "Join" state
+                    if (btnElement) {
+                        btnElement.outerHTML = `
+                            <button onclick="joinMeeting('${data.meet_link}')" style="width: 100%; padding: 10px; background: linear-gradient(135deg, #0b8043 0%, #0d652d 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                <i class="fas fa-video"></i>
+                                Join Google Meet
+                            </button>
+                        `;
+                    }
+                    alert('Google Meet link created! Calendar invites sent to all participants.');
+                } else {
+                    alert('Failed to create Meet link: ' + (data.detail || 'Unknown error'));
+                    if (btnElement) {
+                        btnElement.disabled = false;
+                        btnElement.innerHTML = '<i class="fas fa-video"></i> Create Meet Link';
+                    }
+                }
+            } catch (error) {
+                console.error('Error creating meet link:', error);
+                alert('Error creating Meet link. Check Google OAuth setup.');
+                if (btnElement) {
+                    btnElement.disabled = false;
+                    btnElement.innerHTML = '<i class="fas fa-video"></i> Create Meet Link';
+                }
+            }
+        }
+
+        function getMeetButton(app) {
+            if (app.appointment_type !== 'video' || app.status === 'cancelled') return '';
+            if (app.meet_link) {
+                return `
+                    <div class="detail-item" style="grid-column: 1 / -1;">
+                        <button onclick="joinMeeting('${app.meet_link}')" style="width: 100%; padding: 10px; background: linear-gradient(135deg, #0b8043 0%, #0d652d 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i class="fas fa-video"></i>
+                            Join Google Meet
+                        </button>
+                    </div>
+                `;
+            } else if (app.status === 'scheduled' && app.payment_status === 'paid') {
+                return `
+                    <div class="detail-item" style="grid-column: 1 / -1;">
+                        <button id="meet-btn-${app.id}" onclick="createMeetLink(${app.id}, this)" style="width: 100%; padding: 10px; background: linear-gradient(135deg, #4285f4 0%, #1a73e8 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i class="fas fa-video"></i>
+                            Create Meet Link
+                        </button>
+                    </div>
+                `;
+            }
+            return '';
         }
 
         // Doctor Earnings Functions
