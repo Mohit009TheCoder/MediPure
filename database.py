@@ -70,6 +70,7 @@ class Slot(Base):
     start_time = Column(DateTime)
     end_time = Column(DateTime)
     is_booked = Column(Boolean, default=False)
+    slot_type = Column(String, default="both") # video, physical, both
 
     doctor = relationship("User")
 
