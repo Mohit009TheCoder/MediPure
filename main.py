@@ -239,6 +239,7 @@ class UserCreate(BaseModel):
 class SlotCreate(BaseModel):
     start_time: datetime
     end_time: datetime
+    slot_type: str = "both"
 
 class AppointmentCreate(BaseModel):
     doctor_id: int
@@ -344,7 +345,8 @@ def add_slot(slot: SlotCreate, current_user: database.User = Depends(auth.get_cu
     new_slot = database.Slot(
         doctor_id=current_user.id,
         start_time=start_utc,
-        end_time=end_utc
+        end_time=end_utc,
+        slot_type=slot.slot_type
     )
     
     logger.debug(f"Slot object created: {new_slot}")
@@ -359,7 +361,8 @@ def add_slot(slot: SlotCreate, current_user: database.User = Depends(auth.get_cu
         "message": "Slot added successfully",
         "slot_id": new_slot.id,
         "start_time": new_slot.start_time.isoformat(),
-        "end_time": new_slot.end_time.isoformat()
+        "end_time": new_slot.end_time.isoformat(),
+        "slot_type": new_slot.slot_type
     }
 
 @app.get("/doctor/slots")
@@ -385,7 +388,8 @@ def get_my_slots(current_user: database.User = Depends(auth.get_current_user), d
             "start_time": slot.start_time.isoformat(),  # Send UTC time to frontend
             "end_time": slot.end_time.isoformat(),      # Send UTC time to frontend
             "is_booked": slot.is_booked,
-            "is_past": is_past
+            "is_past": is_past,
+            "slot_type": slot.slot_type
         })
     return result
 
@@ -686,7 +690,8 @@ def get_doctor_slots(doctor_id: int, db: Session = Depends(database.get_db)):
             "doctor_id": slot.doctor_id,
             "start_time": slot.start_time.isoformat(),  # Send UTC time to frontend
             "end_time": slot.end_time.isoformat(),      # Send UTC time to frontend
-            "is_booked": slot.is_booked
+            "is_booked": slot.is_booked,
+            "slot_type": slot.slot_type
         })
     return result
 
